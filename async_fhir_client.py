@@ -77,6 +77,8 @@ class AsyncFhirClient:
         self._filters: List[BaseFilter] = []
         self._expand_fhir_bundle: bool = True
 
+        self._stop_processing: bool = False
+
     def action(self, action: str) -> "FhirClient":
         """
         :param action: (Optional) do an action e.g., $everything
@@ -662,6 +664,21 @@ class AsyncFhirClient:
 
         return await asyncio.gather(*(sem_task(task) for task in tasks))
 
+    async def get_with_handler(self, session: Optional[ClientSession], page_number: Optional[int],
+                               fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]) -> List[
+        Dict[str, Any]]:
+        result = await self.get(session=session, page_number=page_number)
+        if not result.error and bool(result.responses):
+            result_list: List[Dict[str, Any]] = json.loads(result.responses)
+            if fn_handle_batch:
+                if fn_handle_batch(result_list) is False:
+                    self._stop_processing = True
+            if len(result_list) == 0:
+                self._stop_processing = True
+            return result_list
+        else:
+            return []
+
     async def get_in_batches(
             self, fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]
     ) -> FhirGetResponse:
@@ -678,6 +695,7 @@ class AsyncFhirClient:
         assert self._url
         assert self._page_size
         self._page_number = 0
+        self._stop_processing = False
         resources_list: List[Dict[str, Any]] = []
 
         def page_sequence():
@@ -688,34 +706,20 @@ class AsyncFhirClient:
 
         pages = range(6)
         async with self._create_http_session() as http:
-            conc_req = 40
+            conc_req = 2
             # noinspection PyTypeChecker
-            results: List[FhirGetResponse] = await self.gather_with_concurrency(
+            result_list: List[Dict[str, Any]] = await self.gather_with_concurrency(
                 conc_req,
-                *[self.get(http, page_number) for page_number in pages]
+                *[self.get_with_handler(http, page_number, fn_handle_batch) for page_number in pages]
             )
-            for result in results:
-                if not result.error and bool(result.responses):
-                    result_list: List[Dict[str, Any]] = json.loads(result.responses)
-                    if len(result_list) == 0:
-                        break
-                    if fn_handle_batch:
-                        if fn_handle_batch(result_list) is False:
-                            break
-                    else:
-                        resources_list.extend(result_list)
-                    # if self._limit and self._limit > 0:
-                    #     if (self._page_number * self._page_size) > self._limit:
-                    #         break
-                    # self._page_number += 1
-                else:
-                    break
+            resources_list.extend(result_list)
+
             return FhirGetResponse(
                 self._url,
                 responses=json.dumps(resources_list),
-                error=results[0].error,
+                error="",
                 access_token=self._access_token,
-                total_count=results[0].total_count,
+                total_count=len(resources_list),
             )
 
     @staticmethod
