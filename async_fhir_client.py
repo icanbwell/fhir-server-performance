@@ -354,7 +354,7 @@ class AsyncFhirClient:
         self._expand_fhir_bundle = expand_fhir_bundle
         return self
 
-    async def get(self, session: Optional[ClientSession]) -> FhirGetResponse:
+    async def get(self, session: Optional[ClientSession], page_number: Optional[int] = None) -> FhirGetResponse:
         """
         Issues a GET call
         """
@@ -392,11 +392,11 @@ class AsyncFhirClient:
             # add a query for just desired properties
             if self._include_only_properties:
                 full_uri.args["_elements"] = ",".join(self._include_only_properties)
-            if self._page_size and self._page_number is not None:
+            if self._page_size and (self._page_number is not None or page_number is not None):
                 # noinspection SpellCheckingInspection
                 full_uri.args["_count"] = self._page_size
                 # noinspection SpellCheckingInspection
-                full_uri.args["_getpagesoffset"] = self._page_number
+                full_uri.args["_getpagesoffset"] = page_number or self._page_number
 
             # add any sort fields
             if self._sort_fields is not None:
@@ -652,6 +652,16 @@ class AsyncFhirClient:
         session: ClientSession = aiohttp.ClientSession()
         return session
 
+    # noinspection PyMethodMayBeStatic
+    async def gather_with_concurrency(self, n, *tasks):
+        semaphore = asyncio.Semaphore(n)
+
+        async def sem_task(task):
+            async with semaphore:
+                return await task
+
+        return await asyncio.gather(*(sem_task(task) for task in tasks))
+
     async def get_in_batches(
             self, fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]
     ) -> FhirGetResponse:
@@ -669,9 +679,22 @@ class AsyncFhirClient:
         assert self._page_size
         self._page_number = 0
         resources_list: List[Dict[str, Any]] = []
+
+        def page_sequence():
+            num = 0
+            while num < 10:
+                yield num
+                num += 1
+
+        pages = range(6)
         async with self._create_http_session() as http:
-            while True:
-                result: FhirGetResponse = await self.get(http)
+            conc_req = 40
+            # noinspection PyTypeChecker
+            results: List[FhirGetResponse] = await self.gather_with_concurrency(
+                conc_req,
+                *[self.get(http, page_number) for page_number in pages]
+            )
+            for result in results:
                 if not result.error and bool(result.responses):
                     result_list: List[Dict[str, Any]] = json.loads(result.responses)
                     if len(result_list) == 0:
@@ -681,18 +704,18 @@ class AsyncFhirClient:
                             break
                     else:
                         resources_list.extend(result_list)
-                    if self._limit and self._limit > 0:
-                        if (self._page_number * self._page_size) > self._limit:
-                            break
-                    self._page_number += 1
+                    # if self._limit and self._limit > 0:
+                    #     if (self._page_number * self._page_size) > self._limit:
+                    #         break
+                    # self._page_number += 1
                 else:
                     break
             return FhirGetResponse(
                 self._url,
                 responses=json.dumps(resources_list),
-                error=result.error,
+                error=results[0].error,
                 access_token=self._access_token,
-                total_count=result.total_count,
+                total_count=results[0].total_count,
             )
 
     @staticmethod

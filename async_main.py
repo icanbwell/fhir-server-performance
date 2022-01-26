@@ -94,8 +94,8 @@ async def print_hi(name):
         end = time.time()
         print(f"Runtime processing date is {end - start}")
 
-    for id_ in list_of_ids:
-        print(id_)
+    # for id_ in list_of_ids:
+    #     print(id_)
 
 
 # Press the green button in the gutter to run the script.
