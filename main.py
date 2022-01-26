@@ -49,25 +49,31 @@ def print_hi(name):
     fhir_client = fhir_client.client_credentials(auth_client_id, auth_client_secret)
     fhir_client = fhir_client.auth_scopes(auth_scopes)
     fhir_client = fhir_client.resource(resource)
-    greater_than = datetime.strptime("2022-01-08", "%Y-%m-%d")
-    less_than = greater_than + timedelta(days=1)
-    fhir_client = fhir_client.filter(
-        [
-            LastUpdatedFilter(
-                less_than=less_than,
-                greater_than=greater_than
-            )
-        ]
-    )
     fhir_client = fhir_client.page_size(10).page_number(2)
     fhir_client = fhir_client.include_only_properties(["id"])
 
-    result = fhir_client.get()
+    # loop by dates
+    start_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
+    # set up initial filter
+    greater_than = start_date - timedelta(days=1)
+    less_than = greater_than + timedelta(days=1)
+    last_updated_filter = LastUpdatedFilter(less_than=less_than, greater_than=greater_than)
+    fhir_client = fhir_client.filter(
+        [
+            last_updated_filter
+        ]
+    )
+    for x in range(6):
+        greater_than = greater_than + timedelta(days=1)
+        less_than = greater_than + timedelta(days=1)
+        last_updated_filter.less_than = less_than
+        last_updated_filter.greater_than = greater_than
+        result = fhir_client.get()
 
-    import json
-    resource_list = json.loads(result.responses)
-    for resource in resource_list:
-        print(resource['id'])
+        import json
+        resource_list = json.loads(result.responses)
+        for resource in resource_list:
+            print(resource['id'])
 
 
 # Press the green button in the gutter to run the script.
