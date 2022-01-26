@@ -14,12 +14,13 @@ def print_hi(name):
     assert auth_client_id
     auth_client_secret = os.environ.get("FHIR_CLIENT_SECRET")
     assert auth_client_secret
-    auth_scopes = ["user/Practitioner.read", "access/medstar.*"]
+    resource = "AuditEvent"
+    auth_scopes = [f"user/{resource}.read", "access/medstar.*"]
     fhir_client: FhirClient = FhirClient()
     fhir_client = fhir_client.url(server_url)
-    fhir_client = fhir_client.resource("Practitioner")
     fhir_client = fhir_client.client_credentials(auth_client_id, auth_client_secret)
     fhir_client = fhir_client.auth_scopes(auth_scopes)
+    fhir_client = fhir_client.resource(resource)
 
     result = fhir_client.get()
 
