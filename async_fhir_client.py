@@ -354,7 +354,7 @@ class AsyncFhirClient:
         self._expand_fhir_bundle = expand_fhir_bundle
         return self
 
-    async def get(self) -> FhirGetResponse:
+    async def get(self, session: Optional[ClientSession]) -> FhirGetResponse:
         """
         Issues a GET call
         """
@@ -455,136 +455,139 @@ class AsyncFhirClient:
                 headers["Authorization"] = f"Bearer {await self.access_token}"
 
             # actually make the request
-            async with self._create_http_session() as http:
-                response: ClientResponse = await self._send_fhir_request(
-                    http, full_url, headers, payload
-                )
-                # if request is ok (200) then return the data
-                if response.ok:
-                    if self._logger:
-                        self._logger.info(f"Successfully retrieved: {full_url}")
+            if session is None:
+                http = self._create_http_session()
+            else:
+                http = session
+            response: ClientResponse = await self._send_fhir_request(
+                http, full_url, headers, payload
+            )
+            # if request is ok (200) then return the data
+            if response.ok:
+                if self._logger:
+                    self._logger.info(f"Successfully retrieved: {full_url}")
 
-                    total_count: int = 0
-                    text = await response.text()
-                    if len(text) > 0:
-                        response_json: Dict[str, Any] = json.loads(text)
-                        # see if this is a Resource Bundle and un-bundle it
-                        if (
-                                self._expand_fhir_bundle
-                                and "resourceType" in response_json
-                                and response_json["resourceType"] == "Bundle"
-                        ):
-                            if "total" in response_json:
-                                total_count = int(response_json["total"])
-                            if "entry" in response_json:
-                                entries: List[Dict[str, Any]] = response_json["entry"]
-                                entry: Dict[str, Any]
-                                resources_list: List[Dict[str, Any]] = []
-                                for entry in entries:
-                                    if "resource" in entry:
-                                        if self._separate_bundle_resources:
-                                            if self._action != "$graph":
-                                                raise Exception(
-                                                    "only $graph action with _separate_bundle_resources=True"
-                                                    " is supported at this moment"
+                total_count: int = 0
+                text = await response.text()
+                if len(text) > 0:
+                    response_json: Dict[str, Any] = json.loads(text)
+                    # see if this is a Resource Bundle and un-bundle it
+                    if (
+                            self._expand_fhir_bundle
+                            and "resourceType" in response_json
+                            and response_json["resourceType"] == "Bundle"
+                    ):
+                        if "total" in response_json:
+                            total_count = int(response_json["total"])
+                        if "entry" in response_json:
+                            entries: List[Dict[str, Any]] = response_json["entry"]
+                            entry: Dict[str, Any]
+                            resources_list: List[Dict[str, Any]] = []
+                            for entry in entries:
+                                if "resource" in entry:
+                                    if self._separate_bundle_resources:
+                                        if self._action != "$graph":
+                                            raise Exception(
+                                                "only $graph action with _separate_bundle_resources=True"
+                                                " is supported at this moment"
+                                            )
+                                        resources_dict: Dict[
+                                            str, List[Any]
+                                        ] = {}  # {resource type: [data]}}
+                                        # iterate through the entry list
+                                        # have to split these here otherwise when Spark loads them it can't handle
+                                        # that items in the entry array can have different types
+                                        resource_type: str = str(
+                                            entry["resource"]["resourceType"]
+                                        ).lower()
+                                        parent_resource: Dict[str, Any] = entry[
+                                            "resource"
+                                        ]
+                                        resources_dict[resource_type] = [
+                                            parent_resource
+                                        ]
+                                        # $graph returns "contained" if there is any related resources
+                                        if "contained" in entry["resource"]:
+                                            contained = parent_resource.pop("contained")
+                                            for contained_entry in contained:
+                                                resource_type = str(
+                                                    contained_entry["resourceType"]
+                                                ).lower()
+                                                if resource_type not in resources_dict:
+                                                    resources_dict[resource_type] = []
+
+                                                resources_dict[resource_type].append(
+                                                    contained_entry
                                                 )
-                                            resources_dict: Dict[
-                                                str, List[Any]
-                                            ] = {}  # {resource type: [data]}}
-                                            # iterate through the entry list
-                                            # have to split these here otherwise when Spark loads them it can't handle
-                                            # that items in the entry array can have different types
-                                            resource_type: str = str(
-                                                entry["resource"]["resourceType"]
-                                            ).lower()
-                                            parent_resource: Dict[str, Any] = entry[
-                                                "resource"
-                                            ]
-                                            resources_dict[resource_type] = [
-                                                parent_resource
-                                            ]
-                                            # $graph returns "contained" if there is any related resources
-                                            if "contained" in entry["resource"]:
-                                                contained = parent_resource.pop("contained")
-                                                for contained_entry in contained:
-                                                    resource_type = str(
-                                                        contained_entry["resourceType"]
-                                                    ).lower()
-                                                    if resource_type not in resources_dict:
-                                                        resources_dict[resource_type] = []
+                                        resources_list.append(resources_dict)
 
-                                                    resources_dict[resource_type].append(
-                                                        contained_entry
-                                                    )
-                                            resources_list.append(resources_dict)
+                                    else:
+                                        resources_list.append(entry["resource"])
 
-                                        else:
-                                            resources_list.append(entry["resource"])
-
-                                resources = json.dumps(resources_list)
-                        else:
-                            resources = text
-                    return FhirGetResponse(
-                        url=full_url,
-                        responses=resources,
-                        error=None,
-                        access_token=self._access_token,
-                        total_count=total_count,
-                    )
-                elif response.status == 404:  # not found
-                    if self._logger:
-                        self._logger.error(f"resource not found! {full_url}")
-                    return FhirGetResponse(
-                        url=full_url,
-                        responses=resources,
-                        error=f"{response.status}",
-                        access_token=self._access_token,
-                        total_count=0,
-                    )
-                elif (
-                        response.status == 403 or response.status == 401
-                ):  # forbidden or unauthorized
-                    if retries >= 0:
-                        assert (
-                            self._auth_server_url
-                        ), f"{response.status} received from server but no auth_server_url was specified to use"
-                        assert (
-                            self._login_token
-                        ), f"{response.status} received from server but no login_token was specified to use"
-                        self._access_token = await self.authenticate(
-                            http=http,
-                            auth_server_url=self._auth_server_url,
-                            auth_scopes=self._auth_scopes,
-                            login_token=self._login_token,
-                        )
-                        # try again
-                        continue
+                            resources = json.dumps(resources_list)
                     else:
-                        # out of retries so just fail now
-                        return FhirGetResponse(
-                            url=full_url,
-                            responses=resources,
-                            error=f"{response.status}",
-                            access_token=self._access_token,
-                            total_count=0,
-                        )
+                        resources = text
+                return FhirGetResponse(
+                    url=full_url,
+                    responses=resources,
+                    error=None,
+                    access_token=self._access_token,
+                    total_count=total_count,
+                )
+            elif response.status == 404:  # not found
+                if self._logger:
+                    self._logger.error(f"resource not found! {full_url}")
+                return FhirGetResponse(
+                    url=full_url,
+                    responses=resources,
+                    error=f"{response.status}",
+                    access_token=self._access_token,
+                    total_count=0,
+                )
+            elif (
+                    response.status == 403 or response.status == 401
+            ):  # forbidden or unauthorized
+                if retries >= 0:
+                    assert (
+                        self._auth_server_url
+                    ), f"{response.status} received from server but no auth_server_url was specified to use"
+                    assert (
+                        self._login_token
+                    ), f"{response.status} received from server but no login_token was specified to use"
+                    self._access_token = await self.authenticate(
+                        http=http,
+                        auth_server_url=self._auth_server_url,
+                        auth_scopes=self._auth_scopes,
+                        login_token=self._login_token,
+                    )
+                    # try again
+                    continue
                 else:
-                    # some unexpected error
-                    if self._logger:
-                        self._logger.error(
-                            f"Fhir Receive failed [{response.status}]: {full_url} "
-                        )
-                    error_text: str = await response.text()
-                    if self._logger:
-                        self._logger.error(error_text)
-                    resources = error_text
+                    # out of retries so just fail now
                     return FhirGetResponse(
                         url=full_url,
                         responses=resources,
-                        access_token=self._access_token,
                         error=f"{response.status}",
+                        access_token=self._access_token,
                         total_count=0,
                     )
+            else:
+                # some unexpected error
+                if self._logger:
+                    self._logger.error(
+                        f"Fhir Receive failed [{response.status}]: {full_url} "
+                    )
+                error_text: str = await response.text()
+                if self._logger:
+                    self._logger.error(error_text)
+                resources = error_text
+                return FhirGetResponse(
+                    url=full_url,
+                    responses=resources,
+                    access_token=self._access_token,
+                    error=f"{response.status}",
+                    total_count=0,
+                )
         raise Exception("Could not talk to FHIR server after multiple tries")
 
     async def _send_fhir_request(
@@ -666,30 +669,31 @@ class AsyncFhirClient:
         assert self._page_size
         self._page_number = 0
         resources_list: List[Dict[str, Any]] = []
-        while True:
-            result: FhirGetResponse = await self.get()
-            if not result.error and bool(result.responses):
-                result_list: List[Dict[str, Any]] = json.loads(result.responses)
-                if len(result_list) == 0:
-                    break
-                if fn_handle_batch:
-                    if fn_handle_batch(result_list) is False:
+        async with self._create_http_session() as http:
+            while True:
+                result: FhirGetResponse = await self.get(http)
+                if not result.error and bool(result.responses):
+                    result_list: List[Dict[str, Any]] = json.loads(result.responses)
+                    if len(result_list) == 0:
                         break
+                    if fn_handle_batch:
+                        if fn_handle_batch(result_list) is False:
+                            break
+                    else:
+                        resources_list.extend(result_list)
+                    if self._limit and self._limit > 0:
+                        if (self._page_number * self._page_size) > self._limit:
+                            break
+                    self._page_number += 1
                 else:
-                    resources_list.extend(result_list)
-                if self._limit and self._limit > 0:
-                    if (self._page_number * self._page_size) > self._limit:
-                        break
-                self._page_number += 1
-            else:
-                break
-        return FhirGetResponse(
-            self._url,
-            responses=json.dumps(resources_list),
-            error=result.error,
-            access_token=self._access_token,
-            total_count=result.total_count,
-        )
+                    break
+            return FhirGetResponse(
+                self._url,
+                responses=json.dumps(resources_list),
+                error=result.error,
+                access_token=self._access_token,
+                total_count=result.total_count,
+            )
 
     @staticmethod
     def _create_login_token(client_id: str, client_secret: str) -> str:
