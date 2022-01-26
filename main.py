@@ -4,7 +4,8 @@
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
 import os
 from datetime import datetime, timedelta
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
+import time
 
 from helix_fhir_client_sdk.filters.base_filter import BaseFilter
 
@@ -43,18 +44,20 @@ def print_hi(name):
     assert auth_client_secret
     resource = "AuditEvent"
     client = "medstar"
+    page_size = 10000
+
     auth_scopes = [f"user/{resource}.read", f"access/{client}.*"]
     fhir_client: FhirClient = FhirClient()
     fhir_client = fhir_client.url(server_url)
     fhir_client = fhir_client.client_credentials(auth_client_id, auth_client_secret)
     fhir_client = fhir_client.auth_scopes(auth_scopes)
     fhir_client = fhir_client.resource(resource)
-    fhir_client = fhir_client.page_size(10).page_number(2)
+    fhir_client = fhir_client.page_size(page_size)
     fhir_client = fhir_client.include_only_properties(["id"])
 
     # loop by dates
     start_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
-    end_date = datetime.strptime("2022-01-10", "%Y-%m-%d")
+    end_date = datetime.strptime("2022-01-03", "%Y-%m-%d")
     # set up initial filter
     greater_than = start_date - timedelta(days=1)
     less_than = greater_than + timedelta(days=1)
@@ -64,17 +67,30 @@ def print_hi(name):
             last_updated_filter
         ]
     )
+    list_of_ids: List[str] = []
+
+    def add_to_list(resources: List[Dict[str, Any]]) -> bool:
+        end_batch = time.time()
+        list_of_ids.extend([resource_['id'] for resource_ in resources])
+        print(
+            f"Received {len(resources)} resources (total={len(list_of_ids)}) in {(end_batch - start)}"
+            f" starting with resource: {resources[0]['id'] if len(resources) > 0 else 'none'}")
+
+        return True
+
     while greater_than < end_date:
         greater_than = greater_than + timedelta(days=1)
         less_than = greater_than + timedelta(days=1)
+        print(f"===== Processing date {greater_than} =======")
         last_updated_filter.less_than = less_than
         last_updated_filter.greater_than = greater_than
-        result = fhir_client.get()
+        start = time.time()
+        result = fhir_client.get_in_batches(lambda resp: add_to_list(resp))
+        end = time.time()
+        print(f"Runtime processing date is {end - start}")
 
-        import json
-        resource_list = json.loads(result.responses)
-        for resource in resource_list:
-            print(resource['id'])
+    for id_ in list_of_ids:
+        print(id_)
 
 
 # Press the green button in the gutter to run the script.
