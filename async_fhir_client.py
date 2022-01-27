@@ -701,11 +701,13 @@ class AsyncFhirClient:
         return result
 
     async def get_in_batches(
-            self, fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]
+            self, concurrent_requests: int,
+            fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]
     ) -> FhirGetResponse:
         """
         Retrieves the data in batches (using paging) to reduce load on the FHIR server and to reduce network traffic
 
+        :param concurrent_requests:
         :param fn_handle_batch: function to call for each batch.  Receives a list of resources where each
                                     resource is a dictionary. If this is specified then we don't return
                                     the resources anymore.  If this function returns False then we stop
@@ -719,15 +721,7 @@ class AsyncFhirClient:
         self._stop_processing = False
         resources_list: List[Dict[str, Any]] = []
 
-        def page_sequence():
-            num = 0
-            while num < 10:
-                yield num
-                num += 1
-
-        pages = range(6)
         async with self._create_http_session() as http:
-            concurrent_requests: int = 10
             # noinspection PyTypeChecker
             result_list: List[Dict[str, Any]] = await asyncio.gather(
                 *(self.get_batches_with_handler(http, taskNumber, concurrent_requests, fn_handle_batch) for taskNumber in

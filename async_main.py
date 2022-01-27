@@ -80,6 +80,8 @@ async def print_hi(name):
 
         return True
 
+    concurrent_requests: int = 10
+
     # get token first
     await fhir_client.access_token
 
@@ -90,7 +92,9 @@ async def print_hi(name):
         last_updated_filter.less_than = less_than
         last_updated_filter.greater_than = greater_than
         start = time.time()
-        result = await fhir_client.get_in_batches(lambda resp, page_number: add_to_list(resp, page_number))
+        await fhir_client.get_in_batches(
+            concurrent_requests=concurrent_requests,
+            fn_handle_batch=lambda resp, page_number: add_to_list(resp, page_number))
         end = time.time()
         print(f"Runtime processing date is {end - start} for {len(list_of_ids)} records")
 
@@ -100,6 +104,6 @@ async def print_hi(name):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    asyncio.run( print_hi('PyCharm'))
+    asyncio.run(print_hi('PyCharm'))
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
