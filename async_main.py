@@ -59,7 +59,7 @@ async def print_hi(name):
 
     # loop by dates
     start_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
-    end_date = datetime.strptime("2022-01-02", "%Y-%m-%d")
+    end_date = datetime.strptime("2022-01-10", "%Y-%m-%d")
     # set up initial filter
     greater_than = start_date - timedelta(days=1)
     less_than = greater_than + timedelta(days=1)
