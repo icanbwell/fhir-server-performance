@@ -617,7 +617,7 @@ class AsyncFhirClient:
                 f"sending a post: {full_url} with client_id={self._client_id} and scopes={self._auth_scopes}"
             )
             if payload:
-                return http.post(full_url, headers=headers, json=payload)
+                return await http.post(full_url, headers=headers, json=payload)
             else:
                 raise Exception(
                     "$graph needs a payload to define the returning response (use action_payload parameter)"
@@ -665,19 +665,40 @@ class AsyncFhirClient:
         return await asyncio.gather(*(sem_task(task) for task in tasks))
 
     async def get_with_handler(self, session: Optional[ClientSession], page_number: Optional[int],
-                               fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]) -> List[
+                               fn_handle_batch: Optional[Callable[[List[Dict[str, Any]], int], bool]]) -> List[
         Dict[str, Any]]:
         result = await self.get(session=session, page_number=page_number)
         if not result.error and bool(result.responses):
             result_list: List[Dict[str, Any]] = json.loads(result.responses)
             if fn_handle_batch:
-                if fn_handle_batch(result_list) is False:
+                if fn_handle_batch(result_list, page_number) is False:
                     self._stop_processing = True
             if len(result_list) == 0:
                 self._stop_processing = True
             return result_list
         else:
             return []
+
+    async def get_batches_with_handler(self,
+                                       session: Optional[ClientSession],
+                                       start_page: int,
+                                       increment: int,
+                                       fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]
+                                       ) -> List[Dict[str, Any]]:
+        success: bool = True
+        page_number: int = start_page
+        result: List[Dict[str, Any]] = []
+        while success:
+            result_for_page: List[Dict[str, Any]] = await self.get_with_handler(
+                session=session,
+                page_number=page_number,
+                fn_handle_batch=fn_handle_batch
+            )
+            page_number = page_number + increment
+            result.extend(result_for_page)
+            if len(result_for_page) == 0:
+                success = False
+        return result
 
     async def get_in_batches(
             self, fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]
@@ -706,12 +727,17 @@ class AsyncFhirClient:
 
         pages = range(6)
         async with self._create_http_session() as http:
-            conc_req = 2
+            concurrent_requests: int = 10
             # noinspection PyTypeChecker
-            result_list: List[Dict[str, Any]] = await self.gather_with_concurrency(
-                conc_req,
-                *[self.get_with_handler(http, page_number, fn_handle_batch) for page_number in pages]
+            result_list: List[Dict[str, Any]] = await asyncio.gather(
+                *(self.get_batches_with_handler(http, taskNumber, concurrent_requests, fn_handle_batch) for taskNumber in
+                  range(concurrent_requests))
             )
+            # noinspection PyTypeChecker
+            # result_list: List[Dict[str, Any]] = await self.gather_with_concurrency(
+            #     conc_req,
+            #     *[self.get_with_handler(http, page_number, fn_handle_batch) for page_number in pages]
+            # )
             resources_list.extend(result_list)
 
             return FhirGetResponse(

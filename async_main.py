@@ -71,11 +71,11 @@ async def print_hi(name):
     )
     list_of_ids: List[str] = []
 
-    def add_to_list(resources: List[Dict[str, Any]]) -> bool:
+    def add_to_list(resources: List[Dict[str, Any]], page_number) -> bool:
         end_batch = time.time()
         list_of_ids.extend([resource_['id'] for resource_ in resources])
         print(
-            f"Received {len(resources)} resources (total={len(list_of_ids)}) in {(end_batch - start)}"
+            f"Received {len(resources)} resources from page {page_number} (total={len(list_of_ids)}) in {(end_batch - start)}"
             f" starting with resource: {resources[0]['id'] if len(resources) > 0 else 'none'}")
 
         return True
@@ -90,9 +90,9 @@ async def print_hi(name):
         last_updated_filter.less_than = less_than
         last_updated_filter.greater_than = greater_than
         start = time.time()
-        result = await fhir_client.get_in_batches(lambda resp: add_to_list(resp))
+        result = await fhir_client.get_in_batches(lambda resp, page_number: add_to_list(resp, page_number))
         end = time.time()
-        print(f"Runtime processing date is {end - start}")
+        print(f"Runtime processing date is {end - start} for {len(list_of_ids)} records")
 
     # for id_ in list_of_ids:
     #     print(id_)
