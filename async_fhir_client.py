@@ -1,4 +1,4 @@
-from asyncio import Queue
+from asyncio import Queue, QueueEmpty
 
 import aiohttp
 import asyncio
@@ -1109,6 +1109,7 @@ class AsyncFhirClient:
                   for taskNumber in
                   range(concurrent_requests))
             )
+            await queue.join()
             return result_list
 
     async def get_resources_by_id(self, session,
@@ -1119,12 +1120,18 @@ class AsyncFhirClient:
 
         result: List[Dict[str, Any]] = []
         while not queue.empty():
-            chunk = await queue.get()
-            result_per_chunk: List[Dict[str, Any]] = await self.get_with_handler(
-                session=session,
-                page_number=0,
-                ids=chunk,
-                fn_handle_batch=fn_handle_batch
-            )
-            result.extend(result_per_chunk)
+            try:
+                chunk = queue.get_nowait()
+                if chunk is not None:
+                    result_per_chunk: List[Dict[str, Any]] = await self.get_with_handler(
+                        session=session,
+                        page_number=0,
+                        ids=chunk,
+                        fn_handle_batch=fn_handle_batch
+                    )
+                    result.extend(result_per_chunk)
+                    # Notify the queue that the "work item" has been processed.
+                    queue.task_done()
+            except QueueEmpty:
+                break
         return result
