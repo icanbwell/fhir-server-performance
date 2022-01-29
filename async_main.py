@@ -114,7 +114,7 @@ class ResourceDownloader:
         # now split the ids
         chunks: Generator[List[str], None, None] = split_array(list_of_ids, concurrent_requests)
 
-        # chunks_list = list(chunks)
+        chunks_list = list(chunks)
 
         resources = []
 
@@ -132,7 +132,7 @@ class ResourceDownloader:
         fhir_client = await self.create_fhir_client()
         await fhir_client.get_resources_by_id_in_parallel_batches(
             concurrent_requests=concurrent_requests,
-            chunks=chunks,
+            chunks=chunks_list,
             fn_handle_batch=lambda resp, page_number: add_resources_to_list(resp, page_number))
 
         print(f"====== Received {len(resources)} resources =======")

@@ -376,7 +376,7 @@ class AsyncFhirClient:
             full_uri /= self._resource
             if self._obj_id:
                 full_uri /= parse.quote(str(self._obj_id), safe="")
-            if self._id:
+            if self._id or (ids is not None):
                 if self._filter_by_resource:
                     if self._filter_parameter:
                         # ?subject:Patient=27384972
@@ -1095,7 +1095,7 @@ class AsyncFhirClient:
 
     async def get_resources_by_id_in_parallel_batches(self,
                                                       concurrent_requests: int,
-                                                      chunks: Generator[List[str], None, None],
+                                                      chunks: List[List[str]],
                                                       fn_handle_batch: Optional[
                                                           Callable[[List[Dict[str, Any]]], bool]]):
         queue: Queue = asyncio.queues.Queue()
@@ -1122,6 +1122,8 @@ class AsyncFhirClient:
         while not queue.empty():
             try:
                 chunk = queue.get_nowait()
+                # Notify the queue that the "work item" has been processed.
+                queue.task_done()
                 if chunk is not None:
                     result_per_chunk: List[Dict[str, Any]] = await self.get_with_handler(
                         session=session,
@@ -1130,8 +1132,6 @@ class AsyncFhirClient:
                         fn_handle_batch=fn_handle_batch
                     )
                     result.extend(result_per_chunk)
-                    # Notify the queue that the "work item" has been processed.
-                    queue.task_done()
             except QueueEmpty:
                 break
         return result
