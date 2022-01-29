@@ -60,6 +60,8 @@ class ResourceDownloader:
         self.client = "medstar"
         self.page_size = 10000
         self.auth_scopes = [f"user/{self.resource}.read", f"access/{self.client}.*"]
+        self.start_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
+        self.end_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
 
     async def print_hi(self, name):
         # Use a breakpoint in the code line below to debug your script.
@@ -67,12 +69,11 @@ class ResourceDownloader:
         # from helix_fhir_client_sdk.fhir_client import FhirClient
         fhir_client = await self.create_fhir_client()
         fhir_client = fhir_client.include_only_properties(["id"])
+        fhir_client = fhir_client.page_size(self.page_size)
 
         # loop by dates
-        start_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
-        end_date = datetime.strptime("2022-01-02", "%Y-%m-%d")
         # set up initial filter
-        greater_than = start_date - timedelta(days=1)
+        greater_than = self.start_date - timedelta(days=1)
         less_than = greater_than + timedelta(days=1)
         last_updated_filter = LastUpdatedFilter(less_than=less_than, greater_than=greater_than)
         fhir_client = fhir_client.filter(
@@ -82,12 +83,12 @@ class ResourceDownloader:
         )
         list_of_ids: List[str] = []
 
-        def add_to_list(resources: List[Dict[str, Any]], page_number) -> bool:
+        def add_to_list(resources_: List[Dict[str, Any]], page_number) -> bool:
             end_batch = time.time()
-            list_of_ids.extend([resource_['id'] for resource_ in resources])
+            list_of_ids.extend([resource_['id'] for resource_ in resources_])
             print(
-                f"Received {len(resources)} resources from page {page_number} (total={len(list_of_ids)}) in {(end_batch - start)}"
-                f" starting with resource: {resources[0]['id'] if len(resources) > 0 else 'none'}")
+                f"Received {len(resources_)} ids from page {page_number} (total={len(list_of_ids)}) in {(end_batch - start)}"
+                f" starting with id: {resources_[0]['id'] if len(resources_) > 0 else 'none'}")
 
             return True
 
@@ -96,7 +97,7 @@ class ResourceDownloader:
         # get token first
         await fhir_client.access_token
 
-        while greater_than < end_date:
+        while greater_than < self.end_date:
             greater_than = greater_than + timedelta(days=1)
             less_than = greater_than + timedelta(days=1)
             print(f"===== Processing date {greater_than} =======")
@@ -117,11 +118,18 @@ class ResourceDownloader:
         def add_resources_to_list(resources_: List[Dict[str, Any]], page_number) -> bool:
             end_batch = time.time()
             resources.extend([resource_ for resource_ in resources_])
-            print(f"Received {len(resources_)} resources in {(end_batch - start)}")
+            print(
+                f"Received {len(resources_)} resources in {(end_batch - start)} page={page_number}"
+                f" starting with resource: {resources_[0]['id'] if len(resources_) > 0 else 'none'}"
+            )
+
             return True
 
-        await self.process_chunks(chunks=chunks,
-                                  fn_handle_batch=lambda resp, page_number: add_resources_to_list(resp, page_number))
+        # create a new one to reset all the properties
+        fhir_client = await self.create_fhir_client()
+        await fhir_client.process_chunks(
+            chunks=chunks,
+            fn_handle_batch=lambda resp, page_number: add_resources_to_list(resp, page_number))
 
         # for id_ in list_of_ids:
         #     print(id_)
@@ -132,28 +140,7 @@ class ResourceDownloader:
         fhir_client = fhir_client.client_credentials(self.auth_client_id, self.auth_client_secret)
         fhir_client = fhir_client.auth_scopes(self.auth_scopes)
         fhir_client = fhir_client.resource(self.resource)
-        fhir_client = fhir_client.page_size(self.page_size)
         return fhir_client
-
-    async def process_chunks(self, chunks: Generator[List[str], None, None],
-                             fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]):
-        async with AsyncFhirClient.create_http_session() as http:
-            # noinspection PyTypeChecker
-            result_list: List[List[Dict[str, Any]]] = await asyncio.gather(
-                *(self.process(http, chunk, fn_handle_batch) for chunk in chunks)
-            )
-            return result_list
-
-    async def process(self, session, chunk: List[str],
-                      fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]) -> List[Dict[str, Any]]:
-        fhir_client: AsyncFhirClient = await self.create_fhir_client()
-        fhir_client.id_(chunk)
-        result: List[Dict[str, Any]] = await fhir_client.get_with_handler(
-            session=session,
-            page_number=0,
-            fn_handle_batch=fn_handle_batch
-        )
-        return result
 
 
 # Press the green button in the gutter to run the script.

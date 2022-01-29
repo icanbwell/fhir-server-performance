@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 from logging import Logger
 from threading import Lock
-from typing import Dict, Optional, List, Union, Any, Callable
+from typing import Dict, Optional, List, Union, Any, Callable, Generator
 from urllib import parse
 
 import requests
@@ -356,7 +356,10 @@ class AsyncFhirClient:
         self._expand_fhir_bundle = expand_fhir_bundle
         return self
 
-    async def get(self, session: Optional[ClientSession], page_number: Optional[int] = None) -> FhirGetResponse:
+    async def get(self, session: Optional[ClientSession],
+                  page_number: Optional[int] = None,
+                  ids: Optional[List[str]] = None
+                  ) -> FhirGetResponse:
         """
         Issues a GET call
         """
@@ -381,11 +384,12 @@ class AsyncFhirClient:
                     else:
                         # ?patient=27384972
                         full_uri.args[self._filter_by_resource.lower()] = self._id
-                elif isinstance(self._id, list):
-                    if len(self._id) == 1 and not self._obj_id:
-                        full_uri /= self._id
+                elif isinstance(self._id, list) or (ids is not None):
+                    ids_to_retrieve: List[str] = ids if ids else self._id
+                    if len(ids_to_retrieve) == 1 and not self._obj_id:
+                        full_uri /= ids_to_retrieve
                     else:
-                        full_uri.args["id"] = ",".join(self._id)
+                        full_uri.args["id"] = ",".join(ids_to_retrieve)
                 else:
                     full_uri /= self._id
             # add action to url
@@ -664,10 +668,13 @@ class AsyncFhirClient:
 
         return await asyncio.gather(*(sem_task(task) for task in tasks))
 
-    async def get_with_handler(self, session: Optional[ClientSession], page_number: Optional[int],
+    async def get_with_handler(self,
+                               session: Optional[ClientSession],
+                               page_number: Optional[int],
+                               ids: Optional[List[str]],
                                fn_handle_batch: Optional[Callable[[List[Dict[str, Any]], int], bool]]) -> List[
         Dict[str, Any]]:
-        result = await self.get(session=session, page_number=page_number)
+        result = await self.get(session=session, page_number=page_number, ids=ids)
         if not result.error and bool(result.responses):
             result_list: List[Dict[str, Any]] = json.loads(result.responses)
             if fn_handle_batch:
@@ -690,6 +697,7 @@ class AsyncFhirClient:
             result_for_page: List[Dict[str, Any]] = await self.get_with_handler(
                 session=session,
                 page_number=page_number,
+                ids=None,
                 fn_handle_batch=fn_handle_batch
             )
             page_number = page_number + increment
@@ -1082,3 +1090,23 @@ class AsyncFhirClient:
                     self._logger.info(f"Successfully updated: {full_uri}")
 
             return response
+
+    async def process_chunks(self, chunks: Generator[List[str], None, None],
+                             fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]):
+        async with self.create_http_session() as http:
+            # noinspection PyTypeChecker
+            result_list: List[List[Dict[str, Any]]] = await asyncio.gather(
+                *(self.process(http, chunk=chunk, fn_handle_batch=fn_handle_batch) for chunk in chunks)
+            )
+            return result_list
+
+    async def process(self, session,
+                      chunk: List[str],
+                      fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]) -> List[Dict[str, Any]]:
+        result: List[Dict[str, Any]] = await self.get_with_handler(
+            session=session,
+            page_number=0,
+            ids=chunk,
+            fn_handle_batch=fn_handle_batch
+        )
+        return result
