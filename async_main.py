@@ -104,14 +104,17 @@ class ResourceDownloader:
             last_updated_filter.less_than = less_than
             last_updated_filter.greater_than = greater_than
             start = time.time()
-            await fhir_client.get_in_batches(
+            await fhir_client.get_by_query_in_pages(
                 concurrent_requests=concurrent_requests,
                 fn_handle_batch=lambda resp, page_number: add_to_list(resp, page_number))
             end = time.time()
-            print(f"Runtime processing date is {end - start} for {len(list_of_ids)} records")
+            print(f"Runtime processing date is {end - start} for {len(list_of_ids)} ids")
 
+        print(f"====== Received {len(list_of_ids)} ids =======")
         # now split the ids
         chunks: Generator[List[str], None, None] = split_array(list_of_ids, concurrent_requests)
+
+        # chunks_list = list(chunks)
 
         resources = []
 
@@ -127,9 +130,11 @@ class ResourceDownloader:
 
         # create a new one to reset all the properties
         fhir_client = await self.create_fhir_client()
-        await fhir_client.process_chunks(
+        await fhir_client.get_resources_by_id_in_parallel_batches(
             chunks=chunks,
             fn_handle_batch=lambda resp, page_number: add_resources_to_list(resp, page_number))
+
+        print(f"====== Received {len(resources)} resources =======")
 
         # for id_ in list_of_ids:
         #     print(id_)

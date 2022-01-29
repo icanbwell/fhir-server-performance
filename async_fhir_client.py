@@ -684,12 +684,12 @@ class AsyncFhirClient:
         else:
             return []
 
-    async def get_batches_with_handler(self,
-                                       session: Optional[ClientSession],
-                                       start_page: int,
-                                       increment: int,
-                                       fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]
-                                       ) -> List[Dict[str, Any]]:
+    async def get_page_by_query(self,
+                                session: Optional[ClientSession],
+                                start_page: int,
+                                increment: int,
+                                fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]
+                                ) -> List[Dict[str, Any]]:
         success: bool = True
         page_number: int = start_page
         result: List[Dict[str, Any]] = []
@@ -706,7 +706,7 @@ class AsyncFhirClient:
                 success = False
         return result
 
-    async def get_in_batches(
+    async def get_by_query_in_pages(
             self, concurrent_requests: int,
             fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]
     ) -> FhirGetResponse:
@@ -730,7 +730,7 @@ class AsyncFhirClient:
         async with self.create_http_session() as http:
             # noinspection PyTypeChecker
             result_list: List[Dict[str, Any]] = await asyncio.gather(
-                *(self.get_batches_with_handler(http, taskNumber, concurrent_requests, fn_handle_batch) for taskNumber in
+                *(self.get_page_by_query(http, taskNumber, concurrent_requests, fn_handle_batch) for taskNumber in
                   range(concurrent_requests))
             )
             # noinspection PyTypeChecker
@@ -1024,7 +1024,7 @@ class AsyncFhirClient:
         return (
             await self.get()
             if not process_in_batches
-            else await self.get_in_batches(fn_handle_batch=fn_handle_batch)
+            else await self.get_by_query_in_pages(fn_handle_batch=fn_handle_batch)
         )
 
     def include_total(self, include_total: bool) -> "FhirClient":
@@ -1091,18 +1091,18 @@ class AsyncFhirClient:
 
             return response
 
-    async def process_chunks(self, chunks: Generator[List[str], None, None],
-                             fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]):
+    async def get_resources_by_id_in_parallel_batches(self, chunks: Generator[List[str], None, None],
+                                                      fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]):
         async with self.create_http_session() as http:
             # noinspection PyTypeChecker
             result_list: List[List[Dict[str, Any]]] = await asyncio.gather(
-                *(self.process(http, chunk=chunk, fn_handle_batch=fn_handle_batch) for chunk in chunks)
+                *(self.get_resources_by_id(http, chunk=chunk, fn_handle_batch=fn_handle_batch) for chunk in chunks)
             )
             return result_list
 
-    async def process(self, session,
-                      chunk: List[str],
-                      fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]) -> List[Dict[str, Any]]:
+    async def get_resources_by_id(self, session,
+                                  chunk: List[str],
+                                  fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]) -> List[Dict[str, Any]]:
         result: List[Dict[str, Any]] = await self.get_with_handler(
             session=session,
             page_number=0,
