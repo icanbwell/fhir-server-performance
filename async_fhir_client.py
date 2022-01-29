@@ -1,3 +1,5 @@
+from asyncio import Queue
+
 import aiohttp
 import asyncio
 import base64
@@ -1091,22 +1093,38 @@ class AsyncFhirClient:
 
             return response
 
-    async def get_resources_by_id_in_parallel_batches(self, chunks: Generator[List[str], None, None],
-                                                      fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]):
+    async def get_resources_by_id_in_parallel_batches(self,
+                                                      concurrent_requests: int,
+                                                      chunks: Generator[List[str], None, None],
+                                                      fn_handle_batch: Optional[
+                                                          Callable[[List[Dict[str, Any]]], bool]]):
+        queue: Queue = asyncio.queues.Queue()
+        for chunk in chunks:
+            await queue.put(chunk)
+
         async with self.create_http_session() as http:
             # noinspection PyTypeChecker
             result_list: List[List[Dict[str, Any]]] = await asyncio.gather(
-                *(self.get_resources_by_id(http, chunk=chunk, fn_handle_batch=fn_handle_batch) for chunk in chunks)
+                *(self.get_resources_by_id(http, queue=queue, task_number=taskNumber, fn_handle_batch=fn_handle_batch)
+                  for taskNumber in
+                  range(concurrent_requests))
             )
             return result_list
 
     async def get_resources_by_id(self, session,
-                                  chunk: List[str],
-                                  fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]) -> List[Dict[str, Any]]:
-        result: List[Dict[str, Any]] = await self.get_with_handler(
-            session=session,
-            page_number=0,
-            ids=chunk,
-            fn_handle_batch=fn_handle_batch
-        )
+                                  queue: Queue,
+                                  task_number: int,
+                                  fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]) -> List[
+        Dict[str, Any]]:
+
+        result: List[Dict[str, Any]] = []
+        while not queue.empty():
+            chunk = await queue.get()
+            result_per_chunk: List[Dict[str, Any]] = await self.get_with_handler(
+                session=session,
+                page_number=0,
+                ids=chunk,
+                fn_handle_batch=fn_handle_batch
+            )
+            result.extend(result_per_chunk)
         return result

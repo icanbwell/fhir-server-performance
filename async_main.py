@@ -131,6 +131,7 @@ class ResourceDownloader:
         # create a new one to reset all the properties
         fhir_client = await self.create_fhir_client()
         await fhir_client.get_resources_by_id_in_parallel_batches(
+            concurrent_requests=concurrent_requests,
             chunks=chunks,
             fn_handle_batch=lambda resp, page_number: add_resources_to_list(resp, page_number))
 
