@@ -276,7 +276,7 @@ class AsyncFhirClient:
             assert (
                 self._login_token
             ), "login token must be present if auth_server_url is set"
-            async with self._create_http_session() as http:
+            async with self.create_http_session() as http:
                 self._access_token = await self.authenticate(
                     http=http,
                     auth_server_url=self._auth_server_url,
@@ -317,7 +317,7 @@ class AsyncFhirClient:
         full_uri /= self._resource
         full_uri /= self._id
         # setup retry
-        http: ClientSession = await self._create_http_session()
+        http: ClientSession = await self.create_http_session()
 
         # set up headers
         headers: Dict[str, str] = {}
@@ -458,7 +458,7 @@ class AsyncFhirClient:
 
             # actually make the request
             if session is None:
-                http = self._create_http_session()
+                http = self.create_http_session()
             else:
                 http = session
             response: ClientResponse = await self._send_fhir_request(
@@ -632,8 +632,8 @@ class AsyncFhirClient:
             )
             return await http.get(full_url, headers=headers, data=payload)
 
-    # noinspection PyMethodMayBeStatic
-    def _create_http_session(self) -> ClientSession:
+    @staticmethod
+    def create_http_session() -> ClientSession:
         """
         Creates an HTTP Session
         """
@@ -673,8 +673,6 @@ class AsyncFhirClient:
             if fn_handle_batch:
                 if fn_handle_batch(result_list, page_number) is False:
                     self._stop_processing = True
-            if len(result_list) == 0:
-                self._stop_processing = True
             return result_list
         else:
             return []
@@ -721,7 +719,7 @@ class AsyncFhirClient:
         self._stop_processing = False
         resources_list: List[Dict[str, Any]] = []
 
-        async with self._create_http_session() as http:
+        async with self.create_http_session() as http:
             # noinspection PyTypeChecker
             result_list: List[Dict[str, Any]] = await asyncio.gather(
                 *(self.get_batches_with_handler(http, taskNumber, concurrent_requests, fn_handle_batch) for taskNumber in
@@ -827,7 +825,7 @@ class AsyncFhirClient:
             full_uri /= self._resource
             headers = {"Content-Type": "application/fhir+json"}
             responses: List[Dict[str, Any]] = []
-            async with self._create_http_session() as http:
+            async with self.create_http_session() as http:
                 # set access token in request if present
                 if await self.access_token:
                     headers["Authorization"] = f"Bearer {await self.access_token}"
@@ -962,7 +960,7 @@ class AsyncFhirClient:
                 return cached_endpoint
         full_uri /= ".well-known/smart-configuration"
         self._internal_logger.info(f"Calling {full_uri.tostr()}")
-        async with self._create_http_session() as http:
+        async with self.create_http_session() as http:
             response: ClientResponse = await http.get(full_uri.tostr())
             text_ = await response.text()
             if response and response.ok and text_:
@@ -1060,7 +1058,7 @@ class AsyncFhirClient:
         full_uri /= self._resource
         full_uri /= self._id
         # setup retry
-        async with self._create_http_session() as http:
+        async with self.create_http_session() as http:
             # set up headers
             headers = {"Content-Type": "application/fhir+json"}
 
