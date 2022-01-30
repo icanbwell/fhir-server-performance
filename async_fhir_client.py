@@ -665,9 +665,8 @@ class AsyncFhirClient:
             ],
             backoff_factor=5,
         )
-        session: ClientSession = aiohttp.ClientSession()
-        # session: ClientSession = aiohttp.ClientSession(headers={'Connection': 'keep-alive'},
-        #                                                request_class=KeepAliveClientRequest)
+        # session: ClientSession = aiohttp.ClientSession()
+        session: ClientSession = aiohttp.ClientSession(headers={'Connection': 'keep-alive'})
         return session
 
     # noinspection PyMethodMayBeStatic
