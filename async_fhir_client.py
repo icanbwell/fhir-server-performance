@@ -43,7 +43,7 @@ class AsyncFhirClient:
     _well_known_configuration_cache: Dict[str, WellKnownConfigurationCacheEntry] = {}
 
     # used to lock access to above cache
-    _lock: Lock = Lock()
+    _well_known_configuration_cache_lock: Lock = Lock()
 
     def __init__(self) -> None:
         self._action: Optional[str] = None
@@ -80,6 +80,7 @@ class AsyncFhirClient:
         self._expand_fhir_bundle: bool = True
 
         self._stop_processing: bool = False
+        self._authentication_token_lock: Lock = Lock()
 
     def action(self, action: str) -> "AsyncFhirClient":
         """
@@ -805,36 +806,37 @@ class AsyncFhirClient:
         """
         assert auth_server_url
         assert auth_scopes
-        payload: str = (
-            "grant_type=client_credentials&scope=" + "%20".join(auth_scopes)
-            if auth_scopes
-            else ""
-        )
-        # noinspection SpellCheckingInspection
-        headers: Dict[str, str] = {
-            "Accept": "application/json",
-            "Authorization": "Basic " + login_token,
-            "Content-Type": "application/x-www-form-urlencoded",
-        }
+        with self._authentication_token_lock:
+            payload: str = (
+                "grant_type=client_credentials&scope=" + "%20".join(auth_scopes)
+                if auth_scopes
+                else ""
+            )
+            # noinspection SpellCheckingInspection
+            headers: Dict[str, str] = {
+                "Accept": "application/json",
+                "Authorization": "Basic " + login_token,
+                "Content-Type": "application/x-www-form-urlencoded",
+            }
 
-        self._internal_logger.debug(
-            f"Authenticating with {auth_server_url} with client_id={self._client_id} for scopes={auth_scopes}"
-        )
+            self._internal_logger.debug(
+                f"Authenticating with {auth_server_url} with client_id={self._client_id} for scopes={auth_scopes}"
+            )
 
-        response: ClientResponse = await http.request(
-            "POST", auth_server_url, headers=headers, data=payload
-        )
+            response: ClientResponse = await http.request(
+                "POST", auth_server_url, headers=headers, data=payload
+            )
 
-        # token = response.text.encode('utf8')
-        token_text: str = await response.text()
-        if not token_text:
-            return None
-        token_json: Dict[str, Any] = json.loads(token_text)
+            # token = response.text.encode('utf8')
+            token_text: str = await response.text()
+            if not token_text:
+                return None
+            token_json: Dict[str, Any] = json.loads(token_text)
 
-        if "access_token" not in token_json:
-            raise Exception(f"No access token found in {token_json}")
-        access_token: str = token_json["access_token"]
-        return access_token
+            if "access_token" not in token_json:
+                raise Exception(f"No access token found in {token_json}")
+            access_token: str = token_json["access_token"]
+            return access_token
 
     async def merge(self, json_data_list: List[str], ) -> FhirMergeResponse:
         """
@@ -999,7 +1001,7 @@ class AsyncFhirClient:
             if response and response.ok and text_:
                 content: Dict[str, Any] = json.loads(text_)
                 token_endpoint: Optional[str] = str(content["token_endpoint"])
-                with self._lock:
+                with self._well_known_configuration_cache_lock:
                     self._well_known_configuration_cache[
                         host_name
                     ] = WellKnownConfigurationCacheEntry(
@@ -1007,7 +1009,7 @@ class AsyncFhirClient:
                     )
                 return token_endpoint
             else:
-                with self._lock:
+                with self._well_known_configuration_cache_lock:
                     self._well_known_configuration_cache[
                         host_name
                     ] = WellKnownConfigurationCacheEntry(
