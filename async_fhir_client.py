@@ -1,15 +1,17 @@
 from queue import Queue, Empty
+from xmlrpc.client import DateTime
 
 import aiohttp
 import asyncio
 import base64
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from logging import Logger
 from threading import Lock
 from typing import Dict, Optional, List, Union, Any, Callable, Generator
 from urllib import parse
+import time
 
 import requests
 from aiohttp import ClientSession, ClientResponse
@@ -28,6 +30,8 @@ from helix_fhir_client_sdk.validators.fhir_validator import FhirValidator
 from helix_fhir_client_sdk.well_known_configuration import (
     WellKnownConfigurationCacheEntry,
 )
+
+from last_updated_filter import LastUpdatedFilter
 
 
 class AsyncFhirClient:
@@ -1160,3 +1164,85 @@ class AsyncFhirClient:
             except Empty:
                 break
         return result
+
+    # Yield successive n-sized chunks from l.
+    @staticmethod
+    def divide_into_chunks(array: List[Any], chunk_size: int) -> Generator[List[str], None, None]:
+        # looping till length l
+        for i in range(0, len(array), chunk_size):
+            yield array[i:i + chunk_size]
+
+    @staticmethod
+    def handle_error(error: str, response: str, page_number: int):
+        print(f"{error}: {response}")
+        return True
+
+    async def get_resources_by_query_and_last_updated(self, page_size: int, start_date: datetime, end_date: datetime):
+        fhir_client = self.include_only_properties(["id"])
+        fhir_client = fhir_client.page_size(page_size)
+        # loop by dates
+        # set up initial filter
+        greater_than = start_date - timedelta(days=1)
+        less_than = greater_than + timedelta(days=1)
+        last_updated_filter = LastUpdatedFilter(less_than=less_than, greater_than=greater_than)
+        fhir_client = fhir_client.filter(
+            [
+                last_updated_filter
+            ]
+        )
+        list_of_ids: List[str] = []
+
+        def add_to_list(resources_: List[Dict[str, Any]], page_number) -> bool:
+            end_batch = time.time()
+            list_of_ids.extend([resource_['id'] for resource_ in resources_])
+            print(
+                f"Received {len(resources_)} ids from page {page_number} (total={len(list_of_ids)}) in {(end_batch - start)}"
+                f" starting with id: {resources_[0]['id'] if len(resources_) > 0 else 'none'}")
+
+            return True
+
+        concurrent_requests: int = 10
+        # get token first
+        await fhir_client.access_token
+        while greater_than < end_date:
+            greater_than = greater_than + timedelta(days=1)
+            less_than = greater_than + timedelta(days=1)
+            print(f"===== Processing date {greater_than} =======")
+            last_updated_filter.less_than = less_than
+            last_updated_filter.greater_than = greater_than
+            start = time.time()
+            await fhir_client.get_by_query_in_pages(
+                concurrent_requests=concurrent_requests,
+                fn_handle_batch=lambda resp, page_number: add_to_list(resp, page_number),
+                fn_handle_error=self.handle_error
+            )
+            end = time.time()
+            print(f"Runtime processing date is {end - start} for {len(list_of_ids)} ids")
+        print(f"====== Received {len(list_of_ids)} ids =======")
+        # now split the ids
+        chunk_size: int = 100
+        chunks: Generator[List[str], None, None] = self.divide_into_chunks(list_of_ids, chunk_size)
+        # chunks_list = list(chunks)
+        resources = []
+
+        def add_resources_to_list(resources_: List[Dict[str, Any]], page_number) -> bool:
+            end_batch = time.time()
+            resources.extend([resource_ for resource_ in resources_])
+            print(
+                f"Received {len(resources_)} resources (total={len(resources)})"
+                f" in {(end_batch - start)} page={page_number}"
+                f" starting with resource: {resources_[0]['id'] if len(resources_) > 0 else 'none'}"
+            )
+
+            return True
+
+        # create a new one to reset all the properties
+        self._include_only_properties = None
+        self._filters = None
+        await fhir_client.get_resources_by_id_in_parallel_batches(
+            concurrent_requests=concurrent_requests,
+            chunks=chunks,
+            fn_handle_batch=lambda resp, page_number: add_resources_to_list(resp, page_number),
+            fn_handle_error=self.handle_error
+        )
+        return resources
