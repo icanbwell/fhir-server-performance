@@ -72,6 +72,8 @@ class ResourceDownloader:
         return True
 
     async def print_hi(self, name):
+        start_job = time.time()
+
         # Use a breakpoint in the code line below to debug your script.
         print(f'Hi, {name}')  # Press ⌘F8 to toggle the breakpoint.
         # from helix_fhir_client_sdk.fhir_client import FhirClient
@@ -122,7 +124,7 @@ class ResourceDownloader:
 
         print(f"====== Received {len(list_of_ids)} ids =======")
         # now split the ids
-        chunk_size: int = 1000
+        chunk_size: int = 100
         chunks: Generator[List[str], None, None] = divide_into_chunks(list_of_ids, chunk_size)
 
         chunks_list = list(chunks)
@@ -148,7 +150,8 @@ class ResourceDownloader:
             fn_handle_error=self.handle_error
         )
 
-        print(f"====== Received {len(resources)} resources =======")
+        end_job = time.time()
+        print(f"====== Received {len(resources)} resources in {(end_job - start_job)} =======")
 
         # for id_ in list_of_ids:
         #     print(id_)
