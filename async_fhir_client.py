@@ -762,19 +762,17 @@ class AsyncFhirClient:
         resources_list: List[Dict[str, Any]] = []
 
         async with self.create_http_session() as http:
-            # noinspection PyTypeChecker
-            result_list: List[Dict[str, Any]] = await asyncio.gather(
-                *[
-                    task async for task in
-                    self.get_tasks(
-                        http=http,
-                        concurrent_requests=concurrent_requests,
-                        fn_handle_batch=fn_handle_batch,
-                        fn_handle_error=fn_handle_error
-                    )
-                ]
-            )
-            resources_list.extend(result_list)
+            for first_completed in asyncio.as_completed([
+                task async for task in
+                self.get_tasks(
+                    http=http,
+                    concurrent_requests=concurrent_requests,
+                    fn_handle_batch=fn_handle_batch,
+                    fn_handle_error=fn_handle_error
+                )
+            ]):
+                result_list: List[Dict[str, Any]] = await first_completed
+                resources_list.extend(result_list)
 
             return FhirGetResponse(
                 self._url,
