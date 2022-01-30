@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from logging import Logger
 from queue import Queue, Empty
 from threading import Lock
-from typing import Dict, Optional, List, Union, Any, Callable, Generator
+from typing import Dict, Optional, List, Union, Any, Callable, Generator, AsyncGenerator
 from urllib import parse
 
 import aiohttp
@@ -563,7 +563,7 @@ class AsyncFhirClient:
                     access_token=self._access_token,
                     total_count=0,
                 )
-            elif response.status == 504:  # time out
+            elif response.status == 502 or response.status == 504:  # time out
                 if retries >= 0:
                     continue
             elif (
@@ -712,7 +712,6 @@ class AsyncFhirClient:
                                 fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]],
                                 fn_handle_error: Optional[Callable[[str, str, int], bool]]
                                 ) -> List[Dict[str, Any]]:
-        success: bool = True
         page_number: int = start_page
         result: List[Dict[str, Any]] = []
         while not self._last_page or page_number < self._last_page:
@@ -732,6 +731,12 @@ class AsyncFhirClient:
                         print(f"Set last page to {self._last_page}")
             page_number = page_number + increment
         return result
+
+    async def get_tasks(self, concurrent_requests: int, fn_handle_batch, fn_handle_error, http) -> \
+            AsyncGenerator[List[Dict[str, Any]], None]:
+        for taskNumber in range(concurrent_requests):
+            yield (self.get_page_by_query(session=http, start_page=taskNumber, increment=concurrent_requests,
+                                          fn_handle_batch=fn_handle_batch, fn_handle_error=fn_handle_error))
 
     async def get_by_query_in_pages(
             self, concurrent_requests: int,
@@ -759,15 +764,15 @@ class AsyncFhirClient:
         async with self.create_http_session() as http:
             # noinspection PyTypeChecker
             result_list: List[Dict[str, Any]] = await asyncio.gather(
-                *(
-                    self.get_page_by_query(
-                        session=http,
-                        start_page=taskNumber,
-                        increment=concurrent_requests,
+                *[
+                    task async for task in
+                    self.get_tasks(
+                        http=http,
+                        concurrent_requests=concurrent_requests,
                         fn_handle_batch=fn_handle_batch,
                         fn_handle_error=fn_handle_error
-                    ) for taskNumber in
-                    range(concurrent_requests))
+                    )
+                ]
             )
             resources_list.extend(result_list)
 
