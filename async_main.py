@@ -25,10 +25,12 @@ class ResourceDownloader:
         assert self.auth_client_secret
         self.resource = "AuditEvent"
         self.client = "medstar"
-        self.page_size = 10000
+        self.page_size_for_retrieving_ids = 10000
         self.auth_scopes = [f"user/{self.resource}.read", f"access/{self.client}.*"]
         self.start_date = datetime.strptime("2022-01-27", "%Y-%m-%d")
         self.end_date = datetime.strptime("2022-01-27", "%Y-%m-%d")
+        self.concurrent_requests = 50
+        self.page_size_for_retrieving_resources = 100
 
     async def print_hi(self, name):
         start_job = time.time()
@@ -38,9 +40,9 @@ class ResourceDownloader:
         # from helix_fhir_client_sdk.fhir_client import FhirClient
         fhir_client = await self.create_fhir_client()
         resources = await fhir_client.get_resources_by_query_and_last_updated(
-            concurrent_requests=50,
-            page_size_for_retrieving_resources=100,
-            page_size_for_retrieving_ids=self.page_size,
+            concurrent_requests=self.concurrent_requests,
+            page_size_for_retrieving_resources=self.page_size_for_retrieving_resources,
+            page_size_for_retrieving_ids=self.page_size_for_retrieving_ids,
             start_date=self.start_date,
             end_date=self.end_date
         )
