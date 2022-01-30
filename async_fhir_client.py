@@ -715,23 +715,21 @@ class AsyncFhirClient:
         success: bool = True
         page_number: int = start_page
         result: List[Dict[str, Any]] = []
-        while success:
-            if not self._last_page or page_number < self._last_page:
-                result_for_page: List[Dict[str, Any]] = await self.get_with_handler(
-                    session=session,
-                    page_number=page_number,
-                    ids=None,
-                    fn_handle_batch=fn_handle_batch,
-                    fn_handle_error=fn_handle_error
-                )
-                if result_for_page and len(result_for_page) > 0:
-                    result.extend(result_for_page)
-                else:
-                    success = False
-                    with self._last_page_lock:
-                        if not self._last_page or page_number < self._last_page:
-                            self._last_page = page_number
-                            print(f"Set last page to {self._last_page}")
+        while not self._last_page or page_number < self._last_page:
+            result_for_page: List[Dict[str, Any]] = await self.get_with_handler(
+                session=session,
+                page_number=page_number,
+                ids=None,
+                fn_handle_batch=fn_handle_batch,
+                fn_handle_error=fn_handle_error
+            )
+            if result_for_page and len(result_for_page) > 0:
+                result.extend(result_for_page)
+            else:
+                with self._last_page_lock:
+                    if not self._last_page or page_number < self._last_page:
+                        self._last_page = page_number
+                        print(f"Set last page to {self._last_page}")
             page_number = page_number + increment
         return result
 
