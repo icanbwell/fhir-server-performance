@@ -710,6 +710,7 @@ class AsyncFhirClient:
                                 session: Optional[ClientSession],
                                 start_page: int,
                                 increment: int,
+                                output_queue: asyncio.Queue,
                                 fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]],
                                 fn_handle_error: Optional[Callable[[str, str, int], bool]]
                                 ) -> List[PagingResult]:
@@ -724,11 +725,10 @@ class AsyncFhirClient:
                 fn_handle_error=fn_handle_error
             )
             if result_for_page and len(result_for_page) > 0:
+                paging_result = PagingResult(resources=result_for_page, page_number=page_number)
+                await output_queue.put(paging_result)
                 result.append(
-                    PagingResult(
-                        resources=result_for_page,
-                        page_number=page_number
-                    )
+                    paging_result
                 )
             else:
                 with self._last_page_lock:
@@ -738,14 +738,16 @@ class AsyncFhirClient:
             page_number = page_number + increment
         return result
 
-    async def get_tasks(self, concurrent_requests: int, fn_handle_batch, fn_handle_error, http) -> \
+    async def get_tasks(self, concurrent_requests: int, output_queue: asyncio.Queue, fn_handle_batch, fn_handle_error, http) -> \
             AsyncGenerator[List[Dict[str, Any]], None]:
         for taskNumber in range(concurrent_requests):
             yield (self.get_page_by_query(session=http, start_page=taskNumber, increment=concurrent_requests,
+                                          output_queue=output_queue,
                                           fn_handle_batch=fn_handle_batch, fn_handle_error=fn_handle_error))
 
     async def get_by_query_in_pages(
             self, concurrent_requests: int,
+            output_queue: asyncio.Queue,
             fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]],
             fn_handle_error: Optional[Callable[[str, str, int], bool]]
     ) -> FhirGetResponse:
@@ -772,6 +774,7 @@ class AsyncFhirClient:
                 task async for task in
                 self.get_tasks(
                     http=http,
+                    output_queue=output_queue,
                     concurrent_requests=concurrent_requests,
                     fn_handle_batch=fn_handle_batch,
                     fn_handle_error=fn_handle_error
@@ -1222,6 +1225,7 @@ class AsyncFhirClient:
             ]
         )
         list_of_ids: List[str] = []
+        output_queue = asyncio.Queue()
 
         def add_to_list(resources_: List[Dict[str, Any]], page_number) -> bool:
             end_batch = time.time()
@@ -1245,6 +1249,7 @@ class AsyncFhirClient:
             fhir_client._last_page = None  # clean any previous setting
             await fhir_client.get_by_query_in_pages(
                 concurrent_requests=concurrent_requests,
+                output_queue=output_queue,
                 fn_handle_batch=lambda resp, page_number: add_to_list(resp, page_number),
                 fn_handle_error=self.handle_error
             )
