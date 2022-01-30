@@ -29,6 +29,7 @@ from requests.adapters import BaseAdapter
 from urllib3 import Retry  # type: ignore
 
 from last_updated_filter import LastUpdatedFilter
+from paging_result import PagingResult
 
 
 class AsyncFhirClient:
@@ -711,9 +712,9 @@ class AsyncFhirClient:
                                 increment: int,
                                 fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]],
                                 fn_handle_error: Optional[Callable[[str, str, int], bool]]
-                                ) -> List[Dict[str, Any]]:
+                                ) -> List[PagingResult]:
         page_number: int = start_page
-        result: List[Dict[str, Any]] = []
+        result: List[PagingResult] = []
         while not self._last_page or page_number < self._last_page:
             result_for_page: List[Dict[str, Any]] = await self.get_with_handler(
                 session=session,
@@ -723,7 +724,12 @@ class AsyncFhirClient:
                 fn_handle_error=fn_handle_error
             )
             if result_for_page and len(result_for_page) > 0:
-                result.extend(result_for_page)
+                result.append(
+                    PagingResult(
+                        resources=result_for_page,
+                        page_number=page_number
+                    )
+                )
             else:
                 with self._last_page_lock:
                     if not self._last_page or page_number < self._last_page:
@@ -771,8 +777,9 @@ class AsyncFhirClient:
                     fn_handle_error=fn_handle_error
                 )
             ]):
-                result_list: List[Dict[str, Any]] = await first_completed
-                resources_list.extend(result_list)
+                result_list: List[PagingResult] = await first_completed
+                for resources in [r.resources for r in result_list]:
+                    resources_list.extend(resources)
 
             return FhirGetResponse(
                 self._url,
