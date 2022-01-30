@@ -1216,23 +1216,30 @@ class AsyncFhirClient:
         print(f"{error}: {response}")
         return True
 
-    async def get_resources_by_query_and_last_updated(self, start_date: datetime, end_date: datetime,
+    async def get_resources_by_query_and_last_updated(self,
+                                                      last_updated_start_date: datetime,
+                                                      last_updated_end_date: datetime,
                                                       concurrent_requests: int = 10,
                                                       page_size_for_retrieving_resources: int = 100,
                                                       page_size_for_retrieving_ids: int = 10000,
                                                       ):
+        return await self.get_resources_by_query(
+            concurrent_requests=concurrent_requests,
+            last_updated_end_date=last_updated_end_date,
+            last_updated_start_date=last_updated_start_date,
+            page_size_for_retrieving_ids=page_size_for_retrieving_ids,
+            page_size_for_retrieving_resources=page_size_for_retrieving_resources
+        )
+
+    async def get_resources_by_query(self,
+                                     last_updated_start_date: Optional[datetime] = None,
+                                     last_updated_end_date: Optional[datetime] = None,
+                                     concurrent_requests: int = 10,
+                                     page_size_for_retrieving_resources: int = 100,
+                                     page_size_for_retrieving_ids: int = 10000, ):
         fhir_client = self.include_only_properties(["id"])
         fhir_client = fhir_client.page_size(page_size_for_retrieving_ids)
-        # loop by dates
-        # set up initial filter
-        greater_than = start_date - timedelta(days=1)
-        less_than = greater_than + timedelta(days=1)
-        last_updated_filter = LastUpdatedFilter(less_than=less_than, greater_than=greater_than)
-        fhir_client = fhir_client.filter(
-            [
-                last_updated_filter
-            ]
-        )
+
         list_of_ids: List[str] = []
         output_queue = asyncio.Queue()
 
@@ -1248,12 +1255,34 @@ class AsyncFhirClient:
 
         # get token first
         await fhir_client.access_token
-        while greater_than < end_date:
-            greater_than = greater_than + timedelta(days=1)
+
+        if last_updated_start_date is not None and last_updated_end_date is not None:
+            greater_than = last_updated_start_date - timedelta(days=1)
             less_than = greater_than + timedelta(days=1)
-            print(f"===== Processing date {greater_than} =======")
-            last_updated_filter.less_than = less_than
-            last_updated_filter.greater_than = greater_than
+            last_updated_filter = LastUpdatedFilter(less_than=less_than, greater_than=greater_than)
+            fhir_client = fhir_client.filter(
+                [
+                    last_updated_filter
+                ]
+            )
+            while greater_than < last_updated_end_date:
+                greater_than = greater_than + timedelta(days=1)
+                less_than = greater_than + timedelta(days=1)
+                print(f"===== Processing date {greater_than} =======")
+                last_updated_filter.less_than = less_than
+                last_updated_filter.greater_than = greater_than
+                start = time.time()
+                fhir_client._last_page = None  # clean any previous setting
+                await fhir_client.get_by_query_in_pages(
+                    concurrent_requests=concurrent_requests,
+                    output_queue=output_queue,
+                    fn_handle_batch=lambda resp, page_number: add_to_list(resp, page_number),
+                    fn_handle_error=self.handle_error
+                )
+                fhir_client._last_page = None  # clean any previous setting
+                end = time.time()
+                print(f"Runtime processing date is {timedelta(seconds=end - start)} for {len(list_of_ids)} ids")
+        else:
             start = time.time()
             fhir_client._last_page = None  # clean any previous setting
             await fhir_client.get_by_query_in_pages(
@@ -1265,9 +1294,11 @@ class AsyncFhirClient:
             fhir_client._last_page = None  # clean any previous setting
             end = time.time()
             print(f"Runtime processing date is {timedelta(seconds=end - start)} for {len(list_of_ids)} ids")
+
         print(f"====== Received {len(list_of_ids)} ids =======")
         # now split the ids
-        chunks: Generator[List[str], None, None] = self.divide_into_chunks(list_of_ids, page_size_for_retrieving_resources)
+        chunks: Generator[List[str], None, None] = self.divide_into_chunks(list_of_ids,
+                                                                           page_size_for_retrieving_resources)
         # chunks_list = list(chunks)
         resources = []
 

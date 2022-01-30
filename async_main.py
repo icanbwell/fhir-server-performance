@@ -43,8 +43,8 @@ class ResourceDownloader:
             concurrent_requests=self.concurrent_requests,
             page_size_for_retrieving_resources=self.page_size_for_retrieving_resources,
             page_size_for_retrieving_ids=self.page_size_for_retrieving_ids,
-            start_date=self.start_date,
-            end_date=self.end_date
+            last_updated_start_date=self.start_date,
+            last_updated_end_date=self.end_date
         )
 
         end_job = time.time()
