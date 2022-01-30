@@ -1,25 +1,19 @@
-from queue import Queue, Empty
-from xmlrpc.client import DateTime
-
-import aiohttp
 import asyncio
 import base64
 import json
 import logging
+import time
 from datetime import datetime, timedelta
 from logging import Logger
+from queue import Queue, Empty
 from threading import Lock
 from typing import Dict, Optional, List, Union, Any, Callable, Generator
 from urllib import parse
-import time
 
+import aiohttp
 import requests
 from aiohttp import ClientSession, ClientResponse
-from aiohttp.client import _RequestContextManager
 from furl import furl
-from requests.adapters import HTTPAdapter, BaseAdapter
-from urllib3 import Retry  # type: ignore
-
 from helix_fhir_client_sdk.exceptions.fhir_sender_exception import FhirSenderException
 from helix_fhir_client_sdk.filters.base_filter import BaseFilter
 from helix_fhir_client_sdk.filters.sort_field import SortField
@@ -31,8 +25,9 @@ from helix_fhir_client_sdk.validators.fhir_validator import FhirValidator
 from helix_fhir_client_sdk.well_known_configuration import (
     WellKnownConfigurationCacheEntry,
 )
+from requests.adapters import BaseAdapter
+from urllib3 import Retry  # type: ignore
 
-from keep_alive_client_request import KeepAliveClientRequest
 from last_updated_filter import LastUpdatedFilter
 
 
@@ -362,10 +357,21 @@ class AsyncFhirClient:
         self._expand_fhir_bundle = expand_fhir_bundle
         return self
 
-    async def get(self, session: Optional[ClientSession],
-                  page_number: Optional[int] = None,
-                  ids: Optional[List[str]] = None
-                  ) -> FhirGetResponse:
+    async def get(self) -> FhirGetResponse:
+        """
+        Issues a GET call
+        """
+        # actually make the request
+        async with self.create_http_session() as http:
+            return await self._get_with_session(session=http,
+                                                ids=self._id if not self._id or isinstance(self._id, list) else [
+                                                    self._id]
+                                                )
+
+    async def _get_with_session(self, session: Optional[ClientSession],
+                                page_number: Optional[int] = None,
+                                ids: Optional[List[str]] = None
+                                ) -> FhirGetResponse:
         """
         Issues a GET call
         """
@@ -380,24 +386,21 @@ class AsyncFhirClient:
             full_uri /= self._resource
             if self._obj_id:
                 full_uri /= parse.quote(str(self._obj_id), safe="")
-            if self._id or (ids is not None):
+            if ids is not None and len(ids) > 0:
                 if self._filter_by_resource:
                     if self._filter_parameter:
                         # ?subject:Patient=27384972
                         full_uri.args[
                             f"{self._filter_parameter}:{self._filter_by_resource}"
-                        ] = self._id
+                        ] = ids[0]
                     else:
                         # ?patient=27384972
-                        full_uri.args[self._filter_by_resource.lower()] = self._id
-                elif isinstance(self._id, list) or (ids is not None):
-                    ids_to_retrieve: List[str] = ids if ids else self._id
-                    if len(ids_to_retrieve) == 1 and not self._obj_id:
-                        full_uri /= ids_to_retrieve
-                    else:
-                        full_uri.args["id"] = ",".join(ids_to_retrieve)
+                        full_uri.args[self._filter_by_resource.lower()] = ids[0]
                 else:
-                    full_uri /= self._id
+                    if len(ids) == 1 and not self._obj_id:
+                        full_uri /= ids
+                    else:
+                        full_uri.args["id"] = ",".join(ids)
             # add action to url
             if self._action:
                 full_uri /= self._action
@@ -686,7 +689,7 @@ class AsyncFhirClient:
                                fn_handle_batch: Optional[Callable[[List[Dict[str, Any]], int], bool]],
                                fn_handle_error: Optional[Callable[[str, str, int], bool]]) -> List[
         Dict[str, Any]]:
-        result = await self.get(session=session, page_number=page_number, ids=ids)
+        result = await self._get_with_session(session=session, page_number=page_number, ids=ids)
         if result.error:
             if fn_handle_error:
                 fn_handle_error(result.error, result.responses, page_number)
@@ -1019,11 +1022,15 @@ class AsyncFhirClient:
             contained: bool,
             process_in_batches: Optional[bool] = None,
             fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]] = None,
+            fn_handle_error: Optional[Callable[[str, str, int], bool]] = None,
+            concurrent_requests: int = 1
     ) -> FhirGetResponse:
         """
         Executes the $graph query on the FHIR server
 
 
+        :param fn_handle_error:
+        :param concurrent_requests:
         :param graph_definition: definition of a graph to execute
         :param contained: whether we should return the related resources as top level list or nest them inside their
                             parent resources in a contained property
@@ -1045,9 +1052,12 @@ class AsyncFhirClient:
         self._obj_id = "1"  # this is needed because the $graph endpoint requires an id
         async with self.create_http_session() as http:
             return (
-                await self.get(session=http)
+                await self._get_with_session(session=http)
                 if not process_in_batches
-                else await self.get_by_query_in_pages(fn_handle_batch=fn_handle_batch)
+                else await self.get_by_query_in_pages(
+                    concurrent_requests=concurrent_requests,
+                    fn_handle_error=fn_handle_error,
+                    fn_handle_batch=fn_handle_batch)
             )
 
     def include_total(self, include_total: bool) -> "AsyncFhirClient":
