@@ -1,7 +1,7 @@
 import asyncio
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from async_fhir_client import AsyncFhirClient
 
@@ -27,8 +27,8 @@ class ResourceDownloader:
         self.client = "medstar"
         self.page_size = 10000
         self.auth_scopes = [f"user/{self.resource}.read", f"access/{self.client}.*"]
-        self.start_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
-        self.end_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
+        self.start_date = datetime.strptime("2022-01-27", "%Y-%m-%d")
+        self.end_date = datetime.strptime("2022-01-29", "%Y-%m-%d")
 
     async def print_hi(self, name):
         start_job = time.time()
@@ -44,7 +44,7 @@ class ResourceDownloader:
         )
 
         end_job = time.time()
-        print(f"====== Received {len(resources)} resources in {(end_job - start_job)} =======")
+        print(f"====== Received {len(resources)} resources in {timedelta(seconds=end_job - start_job)} =======")
 
         # for id_ in list_of_ids:
         #     print(id_)

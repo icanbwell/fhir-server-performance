@@ -1230,7 +1230,7 @@ class AsyncFhirClient:
             end_batch = time.time()
             resources.extend([resource_ for resource_ in resources_])
             print(
-                f"Received {len(resources_)} resources (total={len(resources)})"
+                f"Received {len(resources_)} resources (total={len(resources)}/{len(list_of_ids)})"
                 f" in {timedelta(seconds=(end_batch - start))} page={page_number}"
                 f" starting with resource: {resources_[0]['id'] if len(resources_) > 0 else 'none'}"
             )
