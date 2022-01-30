@@ -15,6 +15,7 @@ import time
 
 import requests
 from aiohttp import ClientSession, ClientResponse
+from aiohttp.client import _RequestContextManager
 from furl import furl
 from requests.adapters import HTTPAdapter, BaseAdapter
 from urllib3 import Retry  # type: ignore
@@ -31,6 +32,7 @@ from helix_fhir_client_sdk.well_known_configuration import (
     WellKnownConfigurationCacheEntry,
 )
 
+from keep_alive_client_request import KeepAliveClientRequest
 from last_updated_filter import LastUpdatedFilter
 
 
@@ -322,7 +324,7 @@ class AsyncFhirClient:
         full_uri /= self._resource
         full_uri /= self._id
         # setup retry
-        with self.create_http_session() as http:
+        async with self.create_http_session() as http:
             # set up headers
             headers: Dict[str, str] = {}
 
@@ -664,6 +666,8 @@ class AsyncFhirClient:
             backoff_factor=5,
         )
         session: ClientSession = aiohttp.ClientSession()
+        # session: ClientSession = aiohttp.ClientSession(headers={'Connection': 'keep-alive'},
+        #                                                request_class=KeepAliveClientRequest)
         return session
 
     # noinspection PyMethodMayBeStatic

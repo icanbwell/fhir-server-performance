@@ -28,7 +28,7 @@ class ResourceDownloader:
         self.page_size = 10000
         self.auth_scopes = [f"user/{self.resource}.read", f"access/{self.client}.*"]
         self.start_date = datetime.strptime("2022-01-27", "%Y-%m-%d")
-        self.end_date = datetime.strptime("2022-01-29", "%Y-%m-%d")
+        self.end_date = datetime.strptime("2022-01-27", "%Y-%m-%d")
 
     async def print_hi(self, name):
         start_job = time.time()
