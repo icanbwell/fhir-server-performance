@@ -551,6 +551,9 @@ class AsyncFhirClient:
                     access_token=self._access_token,
                     total_count=0,
                 )
+            elif response.status == 504:  # time out
+                if retries >= 0:
+                    continue
             elif (
                     response.status == 403 or response.status == 401
             ):  # forbidden or unauthorized
@@ -708,8 +711,9 @@ class AsyncFhirClient:
                 fn_handle_error=fn_handle_error
             )
             page_number = page_number + increment
-            result.extend(result_for_page)
-            if len(result_for_page) == 0:
+            if result_for_page:
+                result.extend(result_for_page)
+            if not result_for_page or len(result_for_page) == 0:
                 success = False
         return result
 
@@ -1124,8 +1128,8 @@ class AsyncFhirClient:
                     fn_handle_batch=fn_handle_batch,
                     fn_handle_error=fn_handle_error
                 )
-                  for taskNumber in
-                  range(concurrent_requests))
+                    for taskNumber in
+                    range(concurrent_requests))
             )
             queue.join()
             return result_list

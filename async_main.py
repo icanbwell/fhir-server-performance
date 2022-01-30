@@ -64,7 +64,7 @@ class ResourceDownloader:
         self.page_size = 10000
         self.auth_scopes = [f"user/{self.resource}.read", f"access/{self.client}.*"]
         self.start_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
-        self.end_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
+        self.end_date = datetime.strptime("2022-01-02", "%Y-%m-%d")
 
     @staticmethod
     def handle_error(error, response, page_number):
