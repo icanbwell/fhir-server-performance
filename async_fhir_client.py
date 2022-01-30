@@ -14,7 +14,6 @@ from urllib import parse
 import requests
 from aiohttp import ClientSession, ClientResponse
 from furl import furl
-from requests import Response, Session
 from requests.adapters import HTTPAdapter, BaseAdapter
 from urllib3 import Retry  # type: ignore
 
@@ -81,53 +80,53 @@ class AsyncFhirClient:
 
         self._stop_processing: bool = False
 
-    def action(self, action: str) -> "FhirClient":
+    def action(self, action: str) -> "AsyncFhirClient":
         """
         :param action: (Optional) do an action e.g., $everything
         """
         self._action = action
         return self
 
-    def action_payload(self, action_payload: Dict[str, Any]) -> "FhirClient":
+    def action_payload(self, action_payload: Dict[str, Any]) -> "AsyncFhirClient":
         """
         :param action_payload: (Optional) if action such as $graph needs a http payload
         """
         self._action_payload = action_payload
         return self
 
-    def resource(self, resource: str) -> "FhirClient":
+    def resource(self, resource: str) -> "AsyncFhirClient":
         """
         :param resource: what FHIR resource to retrieve
         """
         self._resource = resource
         return self
 
-    def id_(self, id_: Union[List[str], str]) -> "FhirClient":
+    def id_(self, id_: Union[List[str], str]) -> "AsyncFhirClient":
         self._id = id_
         return self
 
-    def url(self, url: str) -> "FhirClient":
+    def url(self, url: str) -> "AsyncFhirClient":
         """
         :param url: server to call for FHIR
         """
         self._url = url
         return self
 
-    def validation_server_url(self, validation_server_url: str) -> "FhirClient":
+    def validation_server_url(self, validation_server_url: str) -> "AsyncFhirClient":
         """
         :param validation_server_url: server to call for FHIR validation
         """
         self._validation_server_url = validation_server_url
         return self
 
-    def additional_parameters(self, additional_parameters: List[str]) -> "FhirClient":
+    def additional_parameters(self, additional_parameters: List[str]) -> "AsyncFhirClient":
         """
         :param additional_parameters: Any additional parameters to send with request
         """
         self._additional_parameters = additional_parameters
         return self
 
-    def filter_by_resource(self, filter_by_resource: str) -> "FhirClient":
+    def filter_by_resource(self, filter_by_resource: str) -> "AsyncFhirClient":
         """
         :param filter_by_resource: filter the resource by this. e.g., /Condition?Patient=1
                 (resource=Condition, filter_by_resource=Patient)
@@ -135,7 +134,7 @@ class AsyncFhirClient:
         self._filter_by_resource = filter_by_resource
         return self
 
-    def filter_parameter(self, filter_parameter: str) -> "FhirClient":
+    def filter_parameter(self, filter_parameter: str) -> "AsyncFhirClient":
         """
         :param filter_parameter: Instead of requesting ?patient=1,
                 do ?subject:Patient=1 (if filter_parameter is subject)
@@ -145,21 +144,21 @@ class AsyncFhirClient:
 
     def include_only_properties(
             self, include_only_properties: List[str]
-    ) -> "FhirClient":
+    ) -> "AsyncFhirClient":
         """
         :param include_only_properties: includes only these properties
         """
         self._include_only_properties = include_only_properties
         return self
 
-    def page_number(self, page_number: int) -> "FhirClient":
+    def page_number(self, page_number: int) -> "AsyncFhirClient":
         """
         :param page_number: page number to load
         """
         self._page_number = page_number
         return self
 
-    def page_size(self, page_size: int) -> "FhirClient":
+    def page_size(self, page_size: int) -> "AsyncFhirClient":
         """
         :param page_size: (Optional) use paging and get this many items in each page
         """
@@ -167,35 +166,35 @@ class AsyncFhirClient:
         self._page_size = page_size
         return self
 
-    def last_updated_after(self, last_updated_after: datetime) -> "FhirClient":
+    def last_updated_after(self, last_updated_after: datetime) -> "AsyncFhirClient":
         """
         :param last_updated_after: (Optional) Only get records newer than this
         """
         self._last_updated_after = last_updated_after
         return self
 
-    def last_updated_before(self, last_updated_before: datetime) -> "FhirClient":
+    def last_updated_before(self, last_updated_before: datetime) -> "AsyncFhirClient":
         """
         :param last_updated_before: (Optional) Only get records older than this
         """
         self._last_updated_before = last_updated_before
         return self
 
-    def sort_fields(self, sort_fields: List[SortField]) -> "FhirClient":
+    def sort_fields(self, sort_fields: List[SortField]) -> "AsyncFhirClient":
         """
         :param sort_fields: sort by fields in the resource
         """
         self._sort_fields = sort_fields
         return self
 
-    def auth_server_url(self, auth_server_url: str) -> "FhirClient":
+    def auth_server_url(self, auth_server_url: str) -> "AsyncFhirClient":
         """
         :param auth_server_url: server url to call to get the authentication token
         """
         self._auth_server_url = auth_server_url
         return self
 
-    def auth_scopes(self, auth_scopes: List[str]) -> "FhirClient":
+    def auth_scopes(self, auth_scopes: List[str]) -> "AsyncFhirClient":
         """
         :param auth_scopes: list of scopes to request permission for e.g., system/AllergyIntolerance.read
         """
@@ -203,14 +202,14 @@ class AsyncFhirClient:
         self._auth_scopes = auth_scopes
         return self
 
-    def login_token(self, login_token: str) -> "FhirClient":
+    def login_token(self, login_token: str) -> "AsyncFhirClient":
         """
         :param login_token: login token to use
         """
         self._login_token = login_token
         return self
 
-    def client_credentials(self, client_id: str, client_secret: str) -> "FhirClient":
+    def client_credentials(self, client_id: str, client_secret: str) -> "AsyncFhirClient":
         """
         Sets client credentials to use when calling the FHIR server
 
@@ -226,7 +225,7 @@ class AsyncFhirClient:
         logging.info(f"Generated login token for client_id={client_id}")
         return self
 
-    def logger(self, logger: FhirLogger) -> "FhirClient":
+    def logger(self, logger: FhirLogger) -> "AsyncFhirClient":
         """
         Logger to use for logging calls to the FHIR server
 
@@ -236,7 +235,7 @@ class AsyncFhirClient:
         self._logger = logger
         return self
 
-    def adapter(self, adapter: BaseAdapter) -> "FhirClient":
+    def adapter(self, adapter: BaseAdapter) -> "AsyncFhirClient":
         """
         Http Adapter to use for calling the FHIR server
 
@@ -246,7 +245,7 @@ class AsyncFhirClient:
         self._adapter = adapter
         return self
 
-    def limit(self, limit: int) -> "FhirClient":
+    def limit(self, limit: int) -> "AsyncFhirClient":
         """
         Limit the results
 
@@ -297,7 +296,7 @@ class AsyncFhirClient:
         """
         self._access_token = value
 
-    def set_access_token(self, value: str) -> "FhirClient":
+    def set_access_token(self, value: str) -> "AsyncFhirClient":
         """
         Sets access token
 
@@ -338,7 +337,7 @@ class AsyncFhirClient:
 
     def separate_bundle_resources(
             self, separate_bundle_resources: bool
-    ) -> "FhirClient":
+    ) -> "AsyncFhirClient":
         """
         Set flag to separate bundle resources
 
@@ -348,7 +347,7 @@ class AsyncFhirClient:
         self._separate_bundle_resources = separate_bundle_resources
         return self
 
-    def expand_fhir_bundle(self, expand_fhir_bundle: bool) -> "FhirClient":
+    def expand_fhir_bundle(self, expand_fhir_bundle: bool) -> "AsyncFhirClient":
         """
         Set flag to expand the FHIR bundle into a list of resources. If false then we don't un bundle the response
 
@@ -1033,13 +1032,14 @@ class AsyncFhirClient:
         self.resource(graph_definition.start)
         self.action("$graph")
         self._obj_id = "1"  # this is needed because the $graph endpoint requires an id
-        return (
-            await self.get()
-            if not process_in_batches
-            else await self.get_by_query_in_pages(fn_handle_batch=fn_handle_batch)
-        )
+        async with self.create_http_session() as http:
+            return (
+                await self.get(session=http)
+                if not process_in_batches
+                else await self.get_by_query_in_pages(fn_handle_batch=fn_handle_batch)
+            )
 
-    def include_total(self, include_total: bool) -> "FhirClient":
+    def include_total(self, include_total: bool) -> "AsyncFhirClient":
         """
         Whether to ask the server to include the total count in the result
 
@@ -1048,7 +1048,7 @@ class AsyncFhirClient:
         self._include_total = include_total
         return self
 
-    def filter(self, filter_: List[BaseFilter]) -> "FhirClient":
+    def filter(self, filter_: List[BaseFilter]) -> "AsyncFhirClient":
         """
         Allows adding in a custom filters that derives from BaseFilter
 
