@@ -81,6 +81,8 @@ class AsyncFhirClient:
 
         self._stop_processing: bool = False
         self._authentication_token_lock: Lock = Lock()
+        self._last_page: Optional[int] = None
+        self._last_page_lock: Lock = Lock()
 
     def action(self, action: str) -> "AsyncFhirClient":
         """
@@ -714,18 +716,23 @@ class AsyncFhirClient:
         page_number: int = start_page
         result: List[Dict[str, Any]] = []
         while success:
-            result_for_page: List[Dict[str, Any]] = await self.get_with_handler(
-                session=session,
-                page_number=page_number,
-                ids=None,
-                fn_handle_batch=fn_handle_batch,
-                fn_handle_error=fn_handle_error
-            )
+            if not self._last_page or page_number < self._last_page:
+                result_for_page: List[Dict[str, Any]] = await self.get_with_handler(
+                    session=session,
+                    page_number=page_number,
+                    ids=None,
+                    fn_handle_batch=fn_handle_batch,
+                    fn_handle_error=fn_handle_error
+                )
+                if result_for_page and len(result_for_page) > 0:
+                    result.extend(result_for_page)
+                else:
+                    success = False
+                    with self._last_page_lock:
+                        if not self._last_page or page_number < self._last_page:
+                            self._last_page = page_number
+                            print(f"Set last page to {self._last_page}")
             page_number = page_number + increment
-            if result_for_page:
-                result.extend(result_for_page)
-            if not result_for_page or len(result_for_page) == 0:
-                success = False
         return result
 
     async def get_by_query_in_pages(
@@ -1227,11 +1234,13 @@ class AsyncFhirClient:
             last_updated_filter.less_than = less_than
             last_updated_filter.greater_than = greater_than
             start = time.time()
+            fhir_client._last_page = None  # clean any previous setting
             await fhir_client.get_by_query_in_pages(
                 concurrent_requests=concurrent_requests,
                 fn_handle_batch=lambda resp, page_number: add_to_list(resp, page_number),
                 fn_handle_error=self.handle_error
             )
+            fhir_client._last_page = None  # clean any previous setting
             end = time.time()
             print(f"Runtime processing date is {timedelta(seconds=end - start)} for {len(list_of_ids)} ids")
         print(f"====== Received {len(list_of_ids)} ids =======")
