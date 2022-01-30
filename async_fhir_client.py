@@ -1146,18 +1146,18 @@ class AsyncFhirClient:
             queue.put(chunk)
 
         async with self.create_http_session() as http:
-            # noinspection PyTypeChecker
-            result_list: List[List[Dict[str, Any]]] = await asyncio.gather(
-                *(self.get_resources_by_id(
-                    session=http,
-                    queue=queue,
-                    task_number=taskNumber,
-                    fn_handle_batch=fn_handle_batch,
-                    fn_handle_error=fn_handle_error
-                )
-                    for taskNumber in
-                    range(concurrent_requests))
+            tasks = [self.get_resources_by_id(
+                session=http,
+                queue=queue,
+                task_number=taskNumber,
+                fn_handle_batch=fn_handle_batch,
+                fn_handle_error=fn_handle_error
             )
+                for taskNumber in
+                range(concurrent_requests)
+            ]
+            for first_completed in asyncio.as_completed(tasks):
+                result_list: List[Dict[str, Any]] = await first_completed
             queue.join()
             return result_list
 
