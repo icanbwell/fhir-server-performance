@@ -1196,7 +1196,8 @@ class AsyncFhirClient:
             end_batch = time.time()
             list_of_ids.extend([resource_['id'] for resource_ in resources_])
             print(
-                f"Received {len(resources_)} ids from page {page_number} (total={len(list_of_ids)}) in {(end_batch - start)}"
+                f"Received {len(resources_)} ids from page {page_number}"
+                f" (total={len(list_of_ids)}) in {timedelta(seconds=end_batch - start)}"
                 f" starting with id: {resources_[0]['id'] if len(resources_) > 0 else 'none'}")
 
             return True
@@ -1217,7 +1218,7 @@ class AsyncFhirClient:
                 fn_handle_error=self.handle_error
             )
             end = time.time()
-            print(f"Runtime processing date is {end - start} for {len(list_of_ids)} ids")
+            print(f"Runtime processing date is {timedelta(seconds=end - start)} for {len(list_of_ids)} ids")
         print(f"====== Received {len(list_of_ids)} ids =======")
         # now split the ids
         chunk_size: int = 100
@@ -1230,7 +1231,7 @@ class AsyncFhirClient:
             resources.extend([resource_ for resource_ in resources_])
             print(
                 f"Received {len(resources_)} resources (total={len(resources)})"
-                f" in {(end_batch - start)} page={page_number}"
+                f" in {timedelta(seconds=(end_batch - start))} page={page_number}"
                 f" starting with resource: {resources_[0]['id'] if len(resources_) > 0 else 'none'}"
             )
 
