@@ -674,10 +674,14 @@ class AsyncFhirClient:
                                session: Optional[ClientSession],
                                page_number: Optional[int],
                                ids: Optional[List[str]],
-                               fn_handle_batch: Optional[Callable[[List[Dict[str, Any]], int], bool]]) -> List[
+                               fn_handle_batch: Optional[Callable[[List[Dict[str, Any]], int], bool]],
+                               fn_handle_error: Optional[Callable[[str, str, int], bool]]) -> List[
         Dict[str, Any]]:
         result = await self.get(session=session, page_number=page_number, ids=ids)
-        if not result.error and bool(result.responses):
+        if result.error:
+            if fn_handle_error:
+                fn_handle_error(result.error, result.responses, page_number)
+        elif not result.error and bool(result.responses):
             result_list: List[Dict[str, Any]] = json.loads(result.responses)
             if fn_handle_batch:
                 if fn_handle_batch(result_list, page_number) is False:
@@ -690,7 +694,8 @@ class AsyncFhirClient:
                                 session: Optional[ClientSession],
                                 start_page: int,
                                 increment: int,
-                                fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]
+                                fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]],
+                                fn_handle_error: Optional[Callable[[str, str, int], bool]]
                                 ) -> List[Dict[str, Any]]:
         success: bool = True
         page_number: int = start_page
@@ -700,7 +705,8 @@ class AsyncFhirClient:
                 session=session,
                 page_number=page_number,
                 ids=None,
-                fn_handle_batch=fn_handle_batch
+                fn_handle_batch=fn_handle_batch,
+                fn_handle_error=fn_handle_error
             )
             page_number = page_number + increment
             result.extend(result_for_page)
@@ -710,11 +716,13 @@ class AsyncFhirClient:
 
     async def get_by_query_in_pages(
             self, concurrent_requests: int,
-            fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]
+            fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]],
+            fn_handle_error: Optional[Callable[[str, str, int], bool]]
     ) -> FhirGetResponse:
         """
         Retrieves the data in batches (using paging) to reduce load on the FHIR server and to reduce network traffic
 
+        :param fn_handle_error:
         :param concurrent_requests:
         :param fn_handle_batch: function to call for each batch.  Receives a list of resources where each
                                     resource is a dictionary. If this is specified then we don't return
@@ -732,14 +740,16 @@ class AsyncFhirClient:
         async with self.create_http_session() as http:
             # noinspection PyTypeChecker
             result_list: List[Dict[str, Any]] = await asyncio.gather(
-                *(self.get_page_by_query(http, taskNumber, concurrent_requests, fn_handle_batch) for taskNumber in
-                  range(concurrent_requests))
+                *(
+                    self.get_page_by_query(
+                        session=http,
+                        start_page=taskNumber,
+                        increment=concurrent_requests,
+                        fn_handle_batch=fn_handle_batch,
+                        fn_handle_error=fn_handle_error
+                    ) for taskNumber in
+                    range(concurrent_requests))
             )
-            # noinspection PyTypeChecker
-            # result_list: List[Dict[str, Any]] = await self.gather_with_concurrency(
-            #     conc_req,
-            #     *[self.get_with_handler(http, page_number, fn_handle_batch) for page_number in pages]
-            # )
             resources_list.extend(result_list)
 
             return FhirGetResponse(
@@ -1093,11 +1103,13 @@ class AsyncFhirClient:
 
             return response
 
-    async def get_resources_by_id_in_parallel_batches(self,
-                                                      concurrent_requests: int,
-                                                      chunks: List[List[str]],
-                                                      fn_handle_batch: Optional[
-                                                          Callable[[List[Dict[str, Any]]], bool]]):
+    async def get_resources_by_id_in_parallel_batches(
+            self,
+            concurrent_requests: int,
+            chunks: List[List[str]],
+            fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]],
+            fn_handle_error: Optional[Callable[[str, str, int], bool]]
+    ):
         queue: Queue = Queue()
         for chunk in chunks:
             queue.put(chunk)
@@ -1105,7 +1117,13 @@ class AsyncFhirClient:
         async with self.create_http_session() as http:
             # noinspection PyTypeChecker
             result_list: List[List[Dict[str, Any]]] = await asyncio.gather(
-                *(self.get_resources_by_id(http, queue=queue, task_number=taskNumber, fn_handle_batch=fn_handle_batch)
+                *(self.get_resources_by_id(
+                    session=http,
+                    queue=queue,
+                    task_number=taskNumber,
+                    fn_handle_batch=fn_handle_batch,
+                    fn_handle_error=fn_handle_error
+                )
                   for taskNumber in
                   range(concurrent_requests))
             )
@@ -1115,7 +1133,8 @@ class AsyncFhirClient:
     async def get_resources_by_id(self, session,
                                   queue: Queue,
                                   task_number: int,
-                                  fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]]) -> List[
+                                  fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]],
+                                  fn_handle_error: Optional[Callable[[str, str, int], bool]]) -> List[
         Dict[str, Any]]:
 
         result: List[Dict[str, Any]] = []
@@ -1129,7 +1148,8 @@ class AsyncFhirClient:
                         session=session,
                         page_number=0,
                         ids=chunk,
-                        fn_handle_batch=fn_handle_batch
+                        fn_handle_batch=fn_handle_batch,
+                        fn_handle_error=fn_handle_error
                     )
                     result.extend(result_per_chunk)
             except Empty:

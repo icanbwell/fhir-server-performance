@@ -109,7 +109,9 @@ class ResourceDownloader:
             start = time.time()
             await fhir_client.get_by_query_in_pages(
                 concurrent_requests=concurrent_requests,
-                fn_handle_batch=lambda resp, page_number: add_to_list(resp, page_number))
+                fn_handle_batch=lambda resp, page_number: add_to_list(resp, page_number),
+                fn_handle_error=lambda error, response, page_number: print(f"{error}: {response}")
+            )
             end = time.time()
             print(f"Runtime processing date is {end - start} for {len(list_of_ids)} ids")
 
@@ -137,7 +139,9 @@ class ResourceDownloader:
         await fhir_client.get_resources_by_id_in_parallel_batches(
             concurrent_requests=concurrent_requests,
             chunks=chunks_list,
-            fn_handle_batch=lambda resp, page_number: add_resources_to_list(resp, page_number))
+            fn_handle_batch=lambda resp, page_number: add_resources_to_list(resp, page_number),
+            fn_handle_error=lambda error, response, page_number: print(f"{error}: {response}")
+        )
 
         print(f"====== Received {len(resources)} resources =======")
 
