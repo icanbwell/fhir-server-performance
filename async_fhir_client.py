@@ -1106,7 +1106,7 @@ class AsyncFhirClient:
     async def get_resources_by_id_in_parallel_batches(
             self,
             concurrent_requests: int,
-            chunks: List[List[str]],
+            chunks: Generator[List[str], None, None],
             fn_handle_batch: Optional[Callable[[List[Dict[str, Any]]], bool]],
             fn_handle_error: Optional[Callable[[str, str, int], bool]]
     ):

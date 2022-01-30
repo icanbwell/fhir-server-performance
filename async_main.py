@@ -4,7 +4,7 @@
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
 import os
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any, Generator, Callable
+from typing import Optional, List, Dict, Any, Generator
 import time
 import asyncio
 from helix_fhir_client_sdk.filters.base_filter import BaseFilter
@@ -35,14 +35,14 @@ class LastUpdatedFilter(BaseFilter):
         return "&".join(filters)
 
 
-def split_array(array, number_of_chunks) -> Generator[List[str], None, None]:
-    """
-    Splits an array into chunks
-    :param array:
-    :param number_of_chunks:
-    """
-    k, m = divmod(len(array), number_of_chunks)
-    return (array[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(number_of_chunks))
+# def split_array(array, number_of_chunks) -> Generator[List[str], None, None]:
+#     """
+#     Splits an array into chunks
+#     :param array:
+#     :param number_of_chunks:
+#     """
+#     k, m = divmod(len(array), number_of_chunks)
+#     return (array[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(number_of_chunks))
 
 
 # Yield successive n-sized chunks from l.
@@ -127,7 +127,7 @@ class ResourceDownloader:
         chunk_size: int = 100
         chunks: Generator[List[str], None, None] = divide_into_chunks(list_of_ids, chunk_size)
 
-        chunks_list = list(chunks)
+        # chunks_list = list(chunks)
 
         resources = []
 
@@ -145,7 +145,7 @@ class ResourceDownloader:
         fhir_client = await self.create_fhir_client()
         await fhir_client.get_resources_by_id_in_parallel_batches(
             concurrent_requests=concurrent_requests,
-            chunks=chunks_list,
+            chunks=chunks,
             fn_handle_batch=lambda resp, page_number: add_resources_to_list(resp, page_number),
             fn_handle_error=self.handle_error
         )
