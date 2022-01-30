@@ -45,8 +45,11 @@ def split_array(array, number_of_chunks) -> Generator[List[str], None, None]:
     return (array[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(number_of_chunks))
 
 
-def get_chunk():
-    pass
+# Yield successive n-sized chunks from l.
+def divide_into_chunks(array: List[Any], chunk_size: int) -> Generator[List[str], None, None]:
+    # looping till length l
+    for i in range(0, len(array), chunk_size):
+        yield array[i:i + chunk_size]
 
 
 class ResourceDownloader:
@@ -112,7 +115,8 @@ class ResourceDownloader:
 
         print(f"====== Received {len(list_of_ids)} ids =======")
         # now split the ids
-        chunks: Generator[List[str], None, None] = split_array(list_of_ids, concurrent_requests)
+        chunk_size: int = 1000
+        chunks: Generator[List[str], None, None] = divide_into_chunks(list_of_ids, chunk_size)
 
         chunks_list = list(chunks)
 

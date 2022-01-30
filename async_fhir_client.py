@@ -1,4 +1,4 @@
-from asyncio import Queue, QueueEmpty
+from queue import Queue, Empty
 
 import aiohttp
 import asyncio
@@ -1098,9 +1098,9 @@ class AsyncFhirClient:
                                                       chunks: List[List[str]],
                                                       fn_handle_batch: Optional[
                                                           Callable[[List[Dict[str, Any]]], bool]]):
-        queue: Queue = asyncio.queues.Queue()
+        queue: Queue = Queue()
         for chunk in chunks:
-            await queue.put(chunk)
+            queue.put(chunk)
 
         async with self.create_http_session() as http:
             # noinspection PyTypeChecker
@@ -1109,7 +1109,7 @@ class AsyncFhirClient:
                   for taskNumber in
                   range(concurrent_requests))
             )
-            await queue.join()
+            queue.join()
             return result_list
 
     async def get_resources_by_id(self, session,
@@ -1132,6 +1132,6 @@ class AsyncFhirClient:
                         fn_handle_batch=fn_handle_batch
                     )
                     result.extend(result_per_chunk)
-            except QueueEmpty:
+            except Empty:
                 break
         return result
