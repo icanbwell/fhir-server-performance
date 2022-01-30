@@ -21,13 +21,13 @@ from helix_fhir_client_sdk.graph.graph_definition import GraphDefinition
 from helix_fhir_client_sdk.loggers.fhir_logger import FhirLogger
 from helix_fhir_client_sdk.responses.fhir_get_response import FhirGetResponse
 from helix_fhir_client_sdk.responses.fhir_merge_response import FhirMergeResponse
-from helix_fhir_client_sdk.validators.fhir_validator import FhirValidator
 from helix_fhir_client_sdk.well_known_configuration import (
     WellKnownConfigurationCacheEntry,
 )
 from requests.adapters import BaseAdapter
 from urllib3 import Retry  # type: ignore
 
+from async_fhir_validator import AsyncFhirValidator
 from last_updated_filter import LastUpdatedFilter
 from paging_result import PagingResult
 
@@ -686,13 +686,14 @@ class AsyncFhirClient:
 
         return await asyncio.gather(*(sem_task(task) for task in tasks))
 
-    async def get_with_handler(self,
-                               session: Optional[ClientSession],
-                               page_number: Optional[int],
-                               ids: Optional[List[str]],
-                               fn_handle_batch: Optional[Callable[[List[Dict[str, Any]], int], bool]],
-                               fn_handle_error: Optional[Callable[[str, str, int], bool]]) -> List[
-        Dict[str, Any]]:
+    async def get_with_handler(
+            self,
+            session: Optional[ClientSession],
+            page_number: Optional[int],
+            ids: Optional[List[str]],
+            fn_handle_batch: Optional[Callable[[List[Dict[str, Any]], int], bool]],
+            fn_handle_error: Optional[Callable[[str, str, int], bool]]
+    ) -> List[Dict[str, Any]]:
         result = await self._get_with_session(session=session, page_number=page_number, ids=ids)
         if result.error:
             if fn_handle_error:
@@ -738,7 +739,8 @@ class AsyncFhirClient:
             page_number = page_number + increment
         return result
 
-    async def get_tasks(self, concurrent_requests: int, output_queue: asyncio.Queue, fn_handle_batch, fn_handle_error, http) -> \
+    async def get_tasks(self, concurrent_requests: int, output_queue: asyncio.Queue, fn_handle_batch, fn_handle_error,
+                        http) -> \
             AsyncGenerator[List[Dict[str, Any]], None]:
         for taskNumber in range(concurrent_requests):
             yield (self.get_page_by_query(session=http, start_page=taskNumber, increment=concurrent_requests,
@@ -754,6 +756,8 @@ class AsyncFhirClient:
         """
         Retrieves the data in batches (using paging) to reduce load on the FHIR server and to reduce network traffic
 
+        :param output_queue:
+        :type output_queue:
         :param fn_handle_error:
         :param concurrent_requests:
         :param fn_handle_batch: function to call for each batch.  Receives a list of resources where each
@@ -890,7 +894,7 @@ class AsyncFhirClient:
                     if self._validation_server_url:
                         resource_json: Dict[str, Any]
                         for resource_json in resource_json_list:
-                            FhirValidator.validate_fhir_resource(
+                            await AsyncFhirValidator.validate_fhir_resource(
                                 http=http,
                                 json_data=json.dumps(resource_json),
                                 resource_name=self._resource,
@@ -1070,12 +1074,14 @@ class AsyncFhirClient:
         self.resource(graph_definition.start)
         self.action("$graph")
         self._obj_id = "1"  # this is needed because the $graph endpoint requires an id
+        output_queue: asyncio.Queue = asyncio.Queue()
         async with self.create_http_session() as http:
             return (
                 await self._get_with_session(session=http)
                 if not process_in_batches
                 else await self.get_by_query_in_pages(
                     concurrent_requests=concurrent_requests,
+                    output_queue=output_queue,
                     fn_handle_error=fn_handle_error,
                     fn_handle_batch=fn_handle_batch)
             )
@@ -1128,7 +1134,7 @@ class AsyncFhirClient:
                 headers["Authorization"] = f"Bearer {await self.access_token}"
 
             if self._validation_server_url:
-                FhirValidator.validate_fhir_resource(
+                await AsyncFhirValidator.validate_fhir_resource(
                     http=http,
                     json_data=json_data,
                     resource_name=self._resource,
