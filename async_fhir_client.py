@@ -322,22 +322,21 @@ class AsyncFhirClient:
         full_uri /= self._resource
         full_uri /= self._id
         # setup retry
-        http: ClientSession = await self.create_http_session()
+        with self.create_http_session() as http:
+            # set up headers
+            headers: Dict[str, str] = {}
 
-        # set up headers
-        headers: Dict[str, str] = {}
+            # set access token in request if present
+            if await self.access_token:
+                headers["Authorization"] = f"Bearer {await self.access_token}"
 
-        # set access token in request if present
-        if await self.access_token:
-            headers["Authorization"] = f"Bearer {await self.access_token}"
+            # actually make the request
+            response: ClientResponse = await http.delete(full_uri.tostr(), headers=headers)
+            if response.ok:
+                if self._logger:
+                    self._logger.info(f"Successfully deleted: {full_uri}")
 
-        # actually make the request
-        response: ClientResponse = await http.delete(full_uri.tostr(), headers=headers)
-        if response.ok:
-            if self._logger:
-                self._logger.info(f"Successfully deleted: {full_uri}")
-
-        return response
+            return response
 
     def separate_bundle_resources(
             self, separate_bundle_resources: bool
@@ -459,6 +458,7 @@ class AsyncFhirClient:
             headers = {
                 "Accept": "application/json",
                 "Content-Type": "application/fhir+json",
+                'Accept-Encoding': 'gzip,deflate'
             }
 
             # set access token in request if present
@@ -1177,7 +1177,8 @@ class AsyncFhirClient:
         print(f"{error}: {response}")
         return True
 
-    async def get_resources_by_query_and_last_updated(self, page_size: int, start_date: datetime, end_date: datetime):
+    async def get_resources_by_query_and_last_updated(self, concurrent_requests: int,
+                                                      page_size: int, start_date: datetime, end_date: datetime):
         fhir_client = self.include_only_properties(["id"])
         fhir_client = fhir_client.page_size(page_size)
         # loop by dates
@@ -1202,7 +1203,6 @@ class AsyncFhirClient:
 
             return True
 
-        concurrent_requests: int = 10
         # get token first
         await fhir_client.access_token
         while greater_than < end_date:
