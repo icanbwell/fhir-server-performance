@@ -66,6 +66,11 @@ class ResourceDownloader:
         self.start_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
         self.end_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
 
+    @staticmethod
+    def handle_error(error, response, page_number):
+        print(f"{error}: {response}")
+        return True
+
     async def print_hi(self, name):
         # Use a breakpoint in the code line below to debug your script.
         print(f'Hi, {name}')  # Press ⌘F8 to toggle the breakpoint.
@@ -110,7 +115,7 @@ class ResourceDownloader:
             await fhir_client.get_by_query_in_pages(
                 concurrent_requests=concurrent_requests,
                 fn_handle_batch=lambda resp, page_number: add_to_list(resp, page_number),
-                fn_handle_error=lambda error, response, page_number: print(f"{error}: {response}")
+                fn_handle_error=self.handle_error
             )
             end = time.time()
             print(f"Runtime processing date is {end - start} for {len(list_of_ids)} ids")
@@ -140,7 +145,7 @@ class ResourceDownloader:
             concurrent_requests=concurrent_requests,
             chunks=chunks_list,
             fn_handle_batch=lambda resp, page_number: add_resources_to_list(resp, page_number),
-            fn_handle_error=lambda error, response, page_number: print(f"{error}: {response}")
+            fn_handle_error=self.handle_error
         )
 
         print(f"====== Received {len(resources)} resources =======")

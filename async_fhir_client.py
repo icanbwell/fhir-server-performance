@@ -1151,7 +1151,8 @@ class AsyncFhirClient:
                         fn_handle_batch=fn_handle_batch,
                         fn_handle_error=fn_handle_error
                     )
-                    result.extend(result_per_chunk)
+                    if result_per_chunk:
+                        result.extend(result_per_chunk)
             except Empty:
                 break
         return result
