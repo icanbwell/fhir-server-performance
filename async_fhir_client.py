@@ -1216,10 +1216,13 @@ class AsyncFhirClient:
         print(f"{error}: {response}")
         return True
 
-    async def get_resources_by_query_and_last_updated(self, concurrent_requests: int,
-                                                      page_size: int, start_date: datetime, end_date: datetime):
+    async def get_resources_by_query_and_last_updated(self, start_date: datetime, end_date: datetime,
+                                                      concurrent_requests: int = 10,
+                                                      page_size_for_retrieving_resources: int = 100,
+                                                      page_size_for_retrieving_ids: int = 10000,
+                                                      ):
         fhir_client = self.include_only_properties(["id"])
-        fhir_client = fhir_client.page_size(page_size)
+        fhir_client = fhir_client.page_size(page_size_for_retrieving_ids)
         # loop by dates
         # set up initial filter
         greater_than = start_date - timedelta(days=1)
@@ -1264,8 +1267,7 @@ class AsyncFhirClient:
             print(f"Runtime processing date is {timedelta(seconds=end - start)} for {len(list_of_ids)} ids")
         print(f"====== Received {len(list_of_ids)} ids =======")
         # now split the ids
-        chunk_size: int = 100
-        chunks: Generator[List[str], None, None] = self.divide_into_chunks(list_of_ids, chunk_size)
+        chunks: Generator[List[str], None, None] = self.divide_into_chunks(list_of_ids, page_size_for_retrieving_resources)
         # chunks_list = list(chunks)
         resources = []
 

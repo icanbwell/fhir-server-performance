@@ -38,8 +38,9 @@ class ResourceDownloader:
         # from helix_fhir_client_sdk.fhir_client import FhirClient
         fhir_client = await self.create_fhir_client()
         resources = await fhir_client.get_resources_by_query_and_last_updated(
-            concurrent_requests=10,
-            page_size=self.page_size,
+            concurrent_requests=50,
+            page_size_for_retrieving_resources=100,
+            page_size_for_retrieving_ids=self.page_size,
             start_date=self.start_date,
             end_date=self.end_date
         )
