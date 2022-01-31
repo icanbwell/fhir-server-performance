@@ -3,7 +3,11 @@ import os
 import time
 from datetime import datetime, timedelta
 
-from async_fhir_client import AsyncFhirClient
+# from async_fhir_client import AsyncFhirClient
+from async_fhir_client_sdk import AsyncFhirClient
+# from helix_fhir_client_sdk.async_fhir_client import AsyncFhirClient
+
+from async_fhir_client_3 import AsyncFhirClient3
 
 
 class ResourceDownloader:
