@@ -1,13 +1,35 @@
 import asyncio
+import logging
 import os
 import time
 from datetime import datetime, timedelta
 
 # from async_fhir_client import AsyncFhirClient
-from async_fhir_client_sdk import AsyncFhirClient
-# from helix_fhir_client_sdk.async_fhir_client import AsyncFhirClient
+# from async_fhir_client_sdk import AsyncFhirClient
+from logging import Logger
+from typing import Any
 
-from async_fhir_client_3 import AsyncFhirClient3
+from helix_fhir_client_sdk.async_fhir_client import AsyncFhirClient
+
+from helix_fhir_client_sdk.loggers.fhir_logger import FhirLogger
+
+
+class MyLogger(FhirLogger):
+    def __init__(self):
+        self._internal_logger: Logger = logging.getLogger("FhirPerformance")
+        self._internal_logger.setLevel(logging.INFO)
+
+    def info(self, param: Any) -> None:
+        """
+        Handle messages at INFO level
+        """
+        self._internal_logger.info(param)
+
+    def error(self, param: Any) -> None:
+        """
+        Handle messages at error level
+        """
+        self._internal_logger.error(param)
 
 
 class ResourceDownloader:
@@ -53,6 +75,7 @@ class ResourceDownloader:
         fhir_client = fhir_client.client_credentials(self.auth_client_id, self.auth_client_secret)
         fhir_client = fhir_client.auth_scopes(self.auth_scopes)
         fhir_client = fhir_client.resource(self.resource)
+        fhir_client = fhir_client.logger(MyLogger())
         return fhir_client
 
 
