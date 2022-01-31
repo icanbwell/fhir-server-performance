@@ -6,9 +6,9 @@ name = "pypi"
 [packages]
 aiohttp = "==3.8.1"
 #asyncio = "==3.4.3"
-"helix.fhir.client.sdk" = "==0.1.46"
+"helix.fhir.client.sdk" = "==0.1.47b1"
 
 [dev-packages]
 
 [requires]
-python_version = "3.8"
+python_version = "3.7"

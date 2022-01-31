@@ -6,16 +6,6 @@ from datetime import datetime, timedelta
 from async_fhir_client import AsyncFhirClient
 
 
-# def split_array(array, number_of_chunks) -> Generator[List[str], None, None]:
-#     """
-#     Splits an array into chunks
-#     :param array:
-#     :param number_of_chunks:
-#     """
-#     k, m = divmod(len(array), number_of_chunks)
-#     return (array[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(number_of_chunks))
-
-
 class ResourceDownloader:
     def __init__(self) -> None:
         self.server_url = "https://fhir.icanbwell.com/4_0_0"
