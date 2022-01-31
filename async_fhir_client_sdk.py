@@ -759,7 +759,7 @@ class AsyncFhirClient:
     ) -> AsyncGenerator[List[PagingResult], None]:
         for taskNumber in range(concurrent_requests):
             yield (
-                await self.get_page_by_query(
+                self.get_page_by_query(
                     session=http,
                     start_page=taskNumber,
                     increment=concurrent_requests,
