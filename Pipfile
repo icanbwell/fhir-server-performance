@@ -10,7 +10,7 @@ urllib3 = "*"
 chardet = "*"
 aiohttp = "==3.8.1"
 #asyncio = "==3.4.3"
-"helix.fhir.client.sdk" = "==0.1.47b3"
+"helix.fhir.client.sdk" = "==0.1.47b4"
 
 [dev-packages]
 
