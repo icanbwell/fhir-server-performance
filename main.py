@@ -1,19 +1,35 @@
 import asyncio
+import logging
 import os
 import time
 from datetime import datetime, timedelta
 
-from async_fhir_client import AsyncFhirClient
+# from async_fhir_client import AsyncFhirClient
+# from async_fhir_client_sdk import AsyncFhirClient
+from logging import Logger
+from typing import Any
+
+from helix_fhir_client_sdk.async_fhir_client import AsyncFhirClient
+
+from helix_fhir_client_sdk.loggers.fhir_logger import FhirLogger
 
 
-# def split_array(array, number_of_chunks) -> Generator[List[str], None, None]:
-#     """
-#     Splits an array into chunks
-#     :param array:
-#     :param number_of_chunks:
-#     """
-#     k, m = divmod(len(array), number_of_chunks)
-#     return (array[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(number_of_chunks))
+class MyLogger(FhirLogger):
+    def __init__(self):
+        self._internal_logger: Logger = logging.getLogger("FhirPerformance")
+        self._internal_logger.setLevel(logging.INFO)
+
+    def info(self, param: Any) -> None:
+        """
+        Handle messages at INFO level
+        """
+        self._internal_logger.info(param)
+
+    def error(self, param: Any) -> None:
+        """
+        Handle messages at error level
+        """
+        self._internal_logger.error(param)
 
 
 class ResourceDownloader:
@@ -24,11 +40,14 @@ class ResourceDownloader:
         self.auth_client_secret = os.environ.get("FHIR_CLIENT_SECRET")
         assert self.auth_client_secret
         self.resource = "AuditEvent"
-        self.client = "medstar"
+        self.client = os.environ.get("FHIR_CLIENT_TAG")
+        if self.client:
+            self.auth_scopes = [f"user/{self.resource}.read", f"access/{self.client}.*"]
+        else:
+            self.auth_scopes = [f"user/{self.resource}.read"]
         self.page_size_for_retrieving_ids = 10000
-        self.auth_scopes = [f"user/{self.resource}.read", f"access/{self.client}.*"]
         self.start_date = datetime.strptime("2022-01-27", "%Y-%m-%d")
-        self.end_date = datetime.strptime("2022-01-27", "%Y-%m-%d")
+        self.end_date = datetime.strptime("2022-01-28", "%Y-%m-%d")
         self.concurrent_requests = 10
         self.page_size_for_retrieving_resources = 100
 
@@ -39,14 +58,12 @@ class ResourceDownloader:
         print(f'Hi, {name}')  # Press ⌘F8 to toggle the breakpoint.
         # from helix_fhir_client_sdk.fhir_client import FhirClient
         fhir_client = await self.create_fhir_client()
-        resources = loop.run_until_complete(
-            fhir_client.get_resources_by_query_and_last_updated(
-                concurrent_requests=self.concurrent_requests,
-                page_size_for_retrieving_resources=self.page_size_for_retrieving_resources,
-                page_size_for_retrieving_ids=self.page_size_for_retrieving_ids,
-                last_updated_start_date=self.start_date,
-                last_updated_end_date=self.end_date
-            )
+        resources = await fhir_client.get_resources_by_query_and_last_updated(
+            concurrent_requests=self.concurrent_requests,
+            page_size_for_retrieving_resources=self.page_size_for_retrieving_resources,
+            page_size_for_retrieving_ids=self.page_size_for_retrieving_ids,
+            last_updated_start_date=self.start_date,
+            last_updated_end_date=self.end_date
         )
 
         end_job = time.time()
@@ -61,6 +78,7 @@ class ResourceDownloader:
         fhir_client = fhir_client.client_credentials(self.auth_client_id, self.auth_client_secret)
         fhir_client = fhir_client.auth_scopes(self.auth_scopes)
         fhir_client = fhir_client.resource(self.resource)
+        fhir_client = fhir_client.logger(MyLogger())
         return fhir_client
 
 
