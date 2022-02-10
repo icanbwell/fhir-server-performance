@@ -40,14 +40,12 @@ class ResourceDownloader:
         self.auth_client_id = os.environ.get("FHIR_CLIENT_ID")
         self.auth_client_secret = os.environ.get("FHIR_CLIENT_SECRET")
         self.resource = "AuditEvent"
+        assert os.environ.get("FHIR_CLIENT_TAG"), "FHIR_CLIENT_TAG environment variable must be set"
         self.client = os.environ.get("FHIR_CLIENT_TAG")
-        if self.client:
-            self.auth_scopes = [f"user/{self.resource}.read", f"access/{self.client}.*"]
-        else:
-            self.auth_scopes = [f"user/{self.resource}.read", f"access/*.*"]
+        self.auth_scopes = [f"user/{self.resource}.read", f"access/{self.client}.*"]
         self.page_size_for_retrieving_ids = 10000
-        self.start_date = datetime.strptime("2022-01-27", "%Y-%m-%d")
-        self.end_date = datetime.strptime("2022-01-28", "%Y-%m-%d")
+        self.start_date = datetime.strptime("2021-12-31", "%Y-%m-%d")
+        self.end_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
         assert self.end_date > self.start_date
         self.concurrent_requests = 10
         self.page_size_for_retrieving_resources = 100
