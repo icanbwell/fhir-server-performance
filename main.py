@@ -17,7 +17,7 @@ from helix_fhir_client_sdk.loggers.fhir_logger import FhirLogger
 class MyLogger(FhirLogger):
     def __init__(self):
         self._internal_logger: Logger = logging.getLogger("FhirPerformance")
-        self._internal_logger.setLevel(logging.INFO)
+        self._internal_logger.setLevel(logging.DEBUG)
 
     def info(self, param: Any) -> None:
         """
@@ -35,19 +35,20 @@ class MyLogger(FhirLogger):
 class ResourceDownloader:
     def __init__(self) -> None:
         self.server_url = "https://fhir.icanbwell.com/4_0_0"
+        assert os.environ.get("FHIR_CLIENT_ID"), "FHIR_CLIENT_ID environment variable must be set"
+        assert os.environ.get("FHIR_CLIENT_SECRET"), "FHIR_CLIENT_SECRET environment variable must be set"
         self.auth_client_id = os.environ.get("FHIR_CLIENT_ID")
-        assert self.auth_client_id
         self.auth_client_secret = os.environ.get("FHIR_CLIENT_SECRET")
-        assert self.auth_client_secret
         self.resource = "AuditEvent"
         self.client = os.environ.get("FHIR_CLIENT_TAG")
         if self.client:
             self.auth_scopes = [f"user/{self.resource}.read", f"access/{self.client}.*"]
         else:
-            self.auth_scopes = [f"user/{self.resource}.read"]
+            self.auth_scopes = [f"user/{self.resource}.read", f"access/*.*"]
         self.page_size_for_retrieving_ids = 10000
         self.start_date = datetime.strptime("2022-01-27", "%Y-%m-%d")
         self.end_date = datetime.strptime("2022-01-28", "%Y-%m-%d")
+        assert self.end_date > self.start_date
         self.concurrent_requests = 10
         self.page_size_for_retrieving_resources = 100
 
