@@ -11,6 +11,8 @@ from helix_fhir_client_sdk.fhir_client import FhirClient
 
 from helix_fhir_client_sdk.loggers.fhir_logger import FhirLogger
 
+from dotenv import load_dotenv
+
 
 class MyLogger(FhirLogger):
     def __init__(self):
@@ -48,7 +50,7 @@ class ResourceDownloader:
         self.concurrent_requests = 10
         self.page_size_for_retrieving_resources = 100
 
-    async def print_hi(self, name):
+    async def load_data(self, name):
         start_job = time.time()
 
         # Use a breakpoint in the code line below to debug your script.
@@ -81,4 +83,6 @@ class ResourceDownloader:
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    asyncio.run(ResourceDownloader().print_hi('PyCharm'))
+    load_dotenv()
+
+    asyncio.run(ResourceDownloader().load_data('PyCharm'))

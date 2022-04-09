@@ -11,6 +11,7 @@ chardet = "*"
 aiohttp = "==3.8.1"
 #asyncio = "==3.4.3"
 "helix.fhir.client.sdk" = "==1.0.3"
+python-dotenv = "*"
 
 [dev-packages]
 
