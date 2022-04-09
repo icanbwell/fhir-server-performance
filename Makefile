@@ -1,3 +1,3 @@
 tests:
-	#source ~/.bash_profile
+	source parameters.env && \
 	python ./main.py

@@ -16,5 +16,6 @@ to download large amounts of data from a FHIR server efficiently.
    2. FHIR_CLIENT_SECRET: OAuth client secret issued by the owner of the FHIR server
    3. FHIR_CLIENT_TAG: Your client tag issued by the owner of the FHIR server.  
       1. This is used only with an advanced security FHIR server such as the Helix FHIR server (https://github.com/icanbwell/fhir-server/blob/master/security.md)
-3. Run `main.py`
+3. Alternatively, you can copy the `parameters.env.template` file to `parameters.env` and set the values in there.  Github will ignore parameters.env.
+4. Run `main.py`
 
