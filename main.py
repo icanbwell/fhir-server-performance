@@ -4,12 +4,10 @@ import os
 import time
 from datetime import datetime, timedelta
 
-# from async_fhir_client import AsyncFhirClient
-# from async_fhir_client_sdk import AsyncFhirClient
 from logging import Logger
 from typing import Any
 
-from helix_fhir_client_sdk.async_fhir_client import AsyncFhirClient
+from helix_fhir_client_sdk.fhir_client import FhirClient
 
 from helix_fhir_client_sdk.loggers.fhir_logger import FhirLogger
 
@@ -57,7 +55,7 @@ class ResourceDownloader:
         print(f'Hi, {name}')  # Press ⌘F8 to toggle the breakpoint.
         # from helix_fhir_client_sdk.fhir_client import FhirClient
         fhir_client = await self.create_fhir_client()
-        resources = await fhir_client.get_resources_by_query_and_last_updated(
+        resources = await fhir_client.get_resources_by_query_and_last_updated_async(
             concurrent_requests=self.concurrent_requests,
             page_size_for_retrieving_resources=self.page_size_for_retrieving_resources,
             page_size_for_retrieving_ids=self.page_size_for_retrieving_ids,
@@ -72,7 +70,7 @@ class ResourceDownloader:
         #     print(id_)
 
     async def create_fhir_client(self):
-        fhir_client: AsyncFhirClient = AsyncFhirClient()
+        fhir_client: FhirClient = FhirClient()
         fhir_client = fhir_client.url(self.server_url)
         fhir_client = fhir_client.client_credentials(self.auth_client_id, self.auth_client_secret)
         fhir_client = fhir_client.auth_scopes(self.auth_scopes)
