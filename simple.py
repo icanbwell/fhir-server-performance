@@ -13,6 +13,7 @@ async def authenticate(client_id, client_secret, fhir_server_url):
     full_uri: furl = furl(furl(fhir_server_url).origin)
     full_uri /= ".well-known/smart-configuration"
 
+    print(f"Calling {full_uri}")
     async with ClientSession() as http:
         response: ClientResponse = await http.request(
             "GET", str(full_uri), ssl=False
@@ -37,6 +38,8 @@ async def authenticate(client_id, client_secret, fhir_server_url):
         "Authorization": "Basic " + login_token,
         "Content-Type": "application/x-www-form-urlencoded",
     }
+
+    print(f"Calling {auth_server_url}")
     async with ClientSession() as http:
         async with http.request(
                 "POST", auth_server_url, headers=headers, data=payload
@@ -72,6 +75,7 @@ async def load_data(fhir_server, use_data_streaming):
 
     payload = {}
 
+    print(f"Calling {fhir_server_url}")
     async with ClientSession() as http:
         async with http.request("GET", fhir_server_url, headers=headers, data=payload, ssl=False) as response:
             if use_data_streaming:
