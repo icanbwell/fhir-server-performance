@@ -75,7 +75,7 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int):
 
     access_token = await authenticate(client_id=client_id, client_secret=client_secret, fhir_server_url=fhir_server_url)
     headers = {
-        # "Accept": "application/fhir+ndjson" if use_data_streaming else "application/fhir+json",
+        "Accept": "application/fhir+ndjson" if use_data_streaming else "application/fhir+json",
         # "Content-Type": "application/fhir+json",
         # "Accept-Encoding": "gzip,deflate",
         "Authorization": f"Bearer {access_token}"
@@ -102,4 +102,4 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int):
 if __name__ == '__main__':
     load_dotenv()
 
-    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com" ,use_data_streaming=True, limit=10000))
+    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com", use_data_streaming=True, limit=10000))
