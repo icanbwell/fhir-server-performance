@@ -102,4 +102,4 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int):
 if __name__ == '__main__':
     load_dotenv()
 
-    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com" ,use_data_streaming=True, limit=10))
+    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com" ,use_data_streaming=True, limit=10000))
