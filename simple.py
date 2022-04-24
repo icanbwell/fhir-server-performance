@@ -73,8 +73,12 @@ async def load_data():
 
     async with ClientSession() as http:
         async with http.request("GET", fhir_server_url, headers=headers, data=payload) as response:
-            print(response.status)
-            print(await response.text())
+            if use_data_streaming:
+                async for data, _ in response.content.iter_chunks():
+                    print(data)
+            else:
+                print(response.status)
+                print(await response.text())
 
 
 # Press the green button in the gutter to run the script.
