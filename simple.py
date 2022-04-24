@@ -6,7 +6,7 @@ from typing import Dict, Any
 import time
 from datetime import datetime, timedelta
 
-from aiohttp import ClientSession, ClientResponse
+from aiohttp import ClientSession, ClientResponse, ClientTimeout
 from dotenv import load_dotenv
 from furl import furl
 
@@ -101,7 +101,7 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
 
     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     print(f"{dt_string}: Calling {fhir_server_url} with Atlas={use_atlas}")
-    async with ClientSession(timeout=0) as http:
+    async with ClientSession(timeout=ClientTimeout(total=0)) as http:
         async with http.request("GET", fhir_server_url, headers=headers, data=payload, ssl=False) as response:
             dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             print(f"{dt_string}: Received response for {fhir_server_url} with Atlas={use_atlas}.")
