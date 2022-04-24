@@ -3,7 +3,8 @@ import base64
 import json
 import os
 from typing import Dict, Any
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
 
 from aiohttp import ClientSession, ClientResponse
 from dotenv import load_dotenv
@@ -84,16 +85,19 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int):
     payload = {}
 
     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    start_job = time.time()
     print(f"{dt_string}: Calling {fhir_server_url}")
     async with ClientSession() as http:
         async with http.request("GET", fhir_server_url, headers=headers, data=payload, ssl=False) as response:
             if use_data_streaming:
                 buffer = b""
                 chunk_number = 0
+                # if you want to receive data one line at a time
                 async for line in response.content:
                     chunk_number += 1
                     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                    print(f"[{chunk_number}] {dt_string}: {line}")
+                    print(f"[{chunk_number}] {dt_string}: {line.decode('ascii')}")
+                # if you want to receive data in a binary buffer
                 # async for data, _ in response.content.iter_chunks():
                 #     chunk_number += 1
                 #     buffer += data
@@ -102,10 +106,12 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int):
             else:
                 print(response.status)
                 print(await response.text())
+    end_job = time.time()
+    print(f"====== Received {chunk_number} resources in {timedelta(seconds=end_job - start_job)} =======")
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     load_dotenv()
 
-    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com", use_data_streaming=True, limit=100000))
+    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com", use_data_streaming=True, limit=10000000))
