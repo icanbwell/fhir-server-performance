@@ -67,14 +67,17 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
     :param limit:
     :return: None
     """
-    fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt2022-01-20&_lastUpdated=lt2022-01-22&_elements=id&_count={limit}&_getpagesoffset=0"
+    fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt2022-02-02&_lastUpdated=lt2022-02-04&_count={limit}&_getpagesoffset=0"
     # fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt2022-04-20&_lastUpdated=lt2022-04-22&_elements=id&_count={limit}&_getpagesoffset=0"
+    retrieve_only_ids = False
+    if retrieve_only_ids:
+        fhir_server_url += "&_elements=id"
     if use_atlas:
         fhir_server_url += "&_useAtlas=1"
     if use_data_streaming:
         fhir_server_url += "&_streamResponse=1"
     # _useTwoStepOptimization
-    fhir_server_url += "&_useTwoStepOptimization=0"
+    fhir_server_url += "&_useTwoStepOptimization=1"
     cursor_batch_size = 1000000
     if cursor_batch_size:
         fhir_server_url += f"&_cursorBatchSize={cursor_batch_size}"
@@ -107,7 +110,8 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
                 async for line in response.content:
                     chunk_number += 1
                     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                    print(f"[{chunk_number}] {dt_string}: {line}", end='\r')
+                    print(f"[{chunk_number}] {dt_string}", end='\r')
+                    # print(f"[{chunk_number}] {dt_string}: {line}", end='\r')
                 # if you want to receive data in a binary buffer
                 # async for data, _ in response.content.iter_chunks():
                 #     chunk_number += 1
