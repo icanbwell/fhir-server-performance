@@ -15,7 +15,7 @@ async def authenticate(client_id, client_secret, fhir_server_url):
     full_uri: furl = furl(furl(fhir_server_url).origin)
     full_uri /= ".well-known/smart-configuration"
 
-    print(f"Calling {full_uri}")
+    # print(f"Calling {full_uri}")
     async with ClientSession() as http:
         response: ClientResponse = await http.request(
             "GET", str(full_uri), ssl=False
@@ -41,7 +41,7 @@ async def authenticate(client_id, client_secret, fhir_server_url):
         "Content-Type": "application/x-www-form-urlencoded",
     }
 
-    print(f"Calling {auth_server_url}")
+    # print(f"Calling {auth_server_url}")
     async with ClientSession() as http:
         async with http.request(
                 "POST", auth_server_url, headers=headers, data=payload
@@ -57,9 +57,11 @@ async def authenticate(client_id, client_secret, fhir_server_url):
         return access_token
 
 
-async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_atlas: bool):
+async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_atlas: bool, retrieve_only_ids: bool):
     """
     loads data
+    :param retrieve_only_ids:
+    :type retrieve_only_ids:
     :param use_atlas:
     :type use_atlas:
     :param fhir_server:
@@ -69,7 +71,6 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
     """
     fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt2022-02-02&_lastUpdated=lt2022-02-04&_count={limit}&_getpagesoffset=0"
     # fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt2022-04-20&_lastUpdated=lt2022-04-22&_elements=id&_count={limit}&_getpagesoffset=0"
-    retrieve_only_ids = True
     if retrieve_only_ids:
         fhir_server_url += "&_elements=id"
     if use_atlas:
@@ -78,10 +79,9 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
         fhir_server_url += "&_streamResponse=1"
     # _useTwoStepOptimization
     # fhir_server_url += "&_useTwoStepOptimization=1"
-    cursor_batch_size = 1000000
-    if cursor_batch_size:
-        fhir_server_url += f"&_cursorBatchSize={cursor_batch_size}"
-    # fhir_server_url = "http://localhost:3000/4_0_0/AuditEvent"
+    # cursor_batch_size = 1000000
+    # if cursor_batch_size:
+    #     fhir_server_url += f"&_cursorBatchSize={cursor_batch_size}"
     assert os.environ.get("FHIR_CLIENT_ID"), "FHIR_CLIENT_ID environment variable must be set"
     assert os.environ.get("FHIR_CLIENT_SECRET"), "FHIR_CLIENT_SECRET environment variable must be set"
     client_id = os.environ.get("FHIR_CLIENT_ID")
@@ -104,10 +104,12 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
     async with ClientSession() as http:
         async with http.request("GET", fhir_server_url, headers=headers, data=payload, ssl=False) as response:
             dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            print(f"{dt_string}: Received response for {fhir_server_url} with Atlas={use_atlas}. Headers= {response.headers}")
+            print(f"{dt_string}: Received response for {fhir_server_url} with Atlas={use_atlas}.")
+            # print(f"{dt_string}: Headers= {response.headers}")
+            chunk_number = 0
             if use_data_streaming:
                 buffer = b""
-                chunk_number = 0
+
                 # if you want to receive data one line at a time
                 line: bytes
                 async for line in response.content:
@@ -133,7 +135,18 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
 if __name__ == '__main__':
     load_dotenv()
 
-    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com", use_data_streaming=True, limit=10000000,
-                          use_atlas=False))
-    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com", use_data_streaming=True, limit=10000000,
-                          use_atlas=True))
+    prod_fhir_server = "fhir.prod-mstarvac.icanbwell.com"
+    prod_next_fhir_server = "fhir-next.prod-mstarvac.icanbwell.com"
+
+    # print("--------- Prod FHIR no data streaming -----")
+    # asyncio.run(load_data(fhir_server=prod_fhir_server, use_data_streaming=False, limit=10000000,
+    #                       use_atlas=False, retrieve_only_ids=True))
+    # print("--------- Prod Next FHIR no data streaming -----")
+    # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=False, limit=10000000,
+    #                       use_atlas=False, retrieve_only_ids=True))
+    print("--------- Prod Next FHIR with data streaming -----")
+    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=10000000,
+                          use_atlas=False, retrieve_only_ids=True))
+    print("--------- Prod Next FHIR with data streaming and Atlas -----")
+    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=10000000,
+                          use_atlas=True, retrieve_only_ids=True))
