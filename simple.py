@@ -73,6 +73,11 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
         fhir_server_url += "&_useAtlas=1"
     if use_data_streaming:
         fhir_server_url += "&_streamResponse=1"
+    # _useTwoStepOptimization
+    fhir_server_url += "&_useTwoStepOptimization=0"
+    cursor_batch_size = 1000000
+    if cursor_batch_size:
+        fhir_server_url += f"&_cursorBatchSize={cursor_batch_size}"
     # fhir_server_url = "http://localhost:3000/4_0_0/AuditEvent"
     assert os.environ.get("FHIR_CLIENT_ID"), "FHIR_CLIENT_ID environment variable must be set"
     assert os.environ.get("FHIR_CLIENT_SECRET"), "FHIR_CLIENT_SECRET environment variable must be set"
