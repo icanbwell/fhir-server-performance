@@ -57,15 +57,20 @@ async def authenticate(client_id, client_secret, fhir_server_url):
         return access_token
 
 
-async def load_data(fhir_server: str, use_data_streaming: bool, limit: int):
+async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_atlas: bool):
     """
     loads data
+    :param use_atlas:
+    :type use_atlas:
     :param fhir_server:
     :type use_data_streaming:
     :param limit:
     :return: None
     """
-    fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt2022-04-20&_lastUpdated=lt2022-04-22&_elements=id&_count={limit}&_getpagesoffset=0"
+    fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt2022-01-20&_lastUpdated=lt2022-01-22&_elements=id&_count={limit}&_getpagesoffset=0"
+    # fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt2022-04-20&_lastUpdated=lt2022-04-22&_elements=id&_count={limit}&_getpagesoffset=0"
+    if use_atlas:
+        fhir_server_url += "&_useAtlas=1"
     if use_data_streaming:
         fhir_server_url += "&_streamResponse=1"
     # fhir_server_url = "http://localhost:3000/4_0_0/AuditEvent"
@@ -86,7 +91,7 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int):
 
     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     start_job = time.time()
-    print(f"{dt_string}: Calling {fhir_server_url}")
+    print(f"{dt_string}: Calling {fhir_server_url} with Atlas={use_atlas}")
     async with ClientSession() as http:
         async with http.request("GET", fhir_server_url, headers=headers, data=payload, ssl=False) as response:
             if use_data_streaming:
@@ -97,7 +102,7 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int):
                 async for line in response.content:
                     chunk_number += 1
                     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                    print(f"[{chunk_number}] {dt_string}: {line}")
+                    print(f"[{chunk_number}] {dt_string}: {line}", end='\r')
                 # if you want to receive data in a binary buffer
                 # async for data, _ in response.content.iter_chunks():
                 #     chunk_number += 1
@@ -108,11 +113,15 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int):
                 print(response.status)
                 print(await response.text())
     end_job = time.time()
-    print(f"====== Received {chunk_number} resources in {timedelta(seconds=end_job - start_job)} =======")
+    print(f"====== Received {chunk_number} resources in {timedelta(seconds=end_job - start_job)}"
+          f" with Atlas={use_atlas} =======")
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     load_dotenv()
 
-    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com", use_data_streaming=True, limit=10000000))
+    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com", use_data_streaming=True, limit=10000000,
+                          use_atlas=False))
+    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com", use_data_streaming=True, limit=10000000,
+                          use_atlas=True))
