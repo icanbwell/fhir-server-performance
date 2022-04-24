@@ -52,8 +52,10 @@ async def authenticate(client_id, client_secret, fhir_server_url):
         return access_token
 
 
-async def load_data(fhir_server):
+async def load_data(fhir_server, use_data_streaming):
     fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt2022-04-20&_lastUpdated=lt2022-04-22&_elements=id&_count=10&_getpagesoffset=0"
+    if use_data_streaming:
+        fhir_server_url += "&_streamResponse=1"
     # fhir_server_url = "http://localhost:3000/4_0_0/AuditEvent"
     assert os.environ.get("FHIR_CLIENT_ID"), "FHIR_CLIENT_ID environment variable must be set"
     assert os.environ.get("FHIR_CLIENT_SECRET"), "FHIR_CLIENT_SECRET environment variable must be set"
@@ -61,7 +63,6 @@ async def load_data(fhir_server):
     client_secret = os.environ.get("FHIR_CLIENT_SECRET")
 
     access_token = await authenticate(client_id=client_id, client_secret=client_secret, fhir_server_url=fhir_server_url)
-    use_data_streaming = False
     headers = {
         # "Accept": "application/fhir+ndjson" if use_data_streaming else "application/fhir+json",
         # "Content-Type": "application/fhir+json",
@@ -85,4 +86,4 @@ async def load_data(fhir_server):
 if __name__ == '__main__':
     load_dotenv()
 
-    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com"))
+    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com" ,use_data_streaming=False))
