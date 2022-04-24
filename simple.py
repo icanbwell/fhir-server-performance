@@ -3,6 +3,7 @@ import base64
 import json
 import os
 from typing import Dict, Any
+from datetime import datetime
 
 from aiohttp import ClientSession, ClientResponse
 from dotenv import load_dotenv
@@ -79,8 +80,11 @@ async def load_data(fhir_server, use_data_streaming):
     async with ClientSession() as http:
         async with http.request("GET", fhir_server_url, headers=headers, data=payload, ssl=False) as response:
             if use_data_streaming:
+                buffer = b""
                 async for data, _ in response.content.iter_chunks():
-                    print(data)
+                    buffer += data
+                    dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                    print(f"{dt_string}: {data}")
             else:
                 print(response.status)
                 print(await response.text())
@@ -90,4 +94,4 @@ async def load_data(fhir_server, use_data_streaming):
 if __name__ == '__main__':
     load_dotenv()
 
-    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com" ,use_data_streaming=False))
+    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com" ,use_data_streaming=True))
