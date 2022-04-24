@@ -56,8 +56,15 @@ async def authenticate(client_id, client_secret, fhir_server_url):
         return access_token
 
 
-async def load_data(fhir_server, use_data_streaming):
-    fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt2022-04-20&_lastUpdated=lt2022-04-22&_elements=id&_count=10&_getpagesoffset=0"
+async def load_data(fhir_server: str, use_data_streaming: bool, limit: int):
+    """
+    loads data
+    :param fhir_server:
+    :type use_data_streaming:
+    :param limit:
+    :return: None
+    """
+    fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt2022-04-20&_lastUpdated=lt2022-04-22&_elements=id&_count={limit}&_getpagesoffset=0"
     if use_data_streaming:
         fhir_server_url += "&_streamResponse=1"
     # fhir_server_url = "http://localhost:3000/4_0_0/AuditEvent"
@@ -76,7 +83,8 @@ async def load_data(fhir_server, use_data_streaming):
 
     payload = {}
 
-    print(f"Calling {fhir_server_url}")
+    dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    print(f"{dt_string}: Calling {fhir_server_url}")
     async with ClientSession() as http:
         async with http.request("GET", fhir_server_url, headers=headers, data=payload, ssl=False) as response:
             if use_data_streaming:
@@ -94,4 +102,4 @@ async def load_data(fhir_server, use_data_streaming):
 if __name__ == '__main__':
     load_dotenv()
 
-    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com" ,use_data_streaming=True))
+    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com" ,use_data_streaming=True, limit=10))
