@@ -89,10 +89,12 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int):
         async with http.request("GET", fhir_server_url, headers=headers, data=payload, ssl=False) as response:
             if use_data_streaming:
                 buffer = b""
+                chunk_number = 0
                 async for data, _ in response.content.iter_chunks():
+                    chunk_number += 1
                     buffer += data
                     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                    print(f"{dt_string}: {data}")
+                    print(f"[{chunk_number}] {dt_string}: {data}")
             else:
                 print(response.status)
                 print(await response.text())
