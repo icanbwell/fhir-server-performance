@@ -38,39 +38,40 @@ async def authenticate(client_id, client_secret, fhir_server_url):
         "Content-Type": "application/x-www-form-urlencoded",
     }
     async with ClientSession() as http:
-        response: ClientResponse = await http.request(
-            "POST", auth_server_url, headers=headers, data=payload
-        )
-        token_text: str = await response.text()
-        if not token_text:
-            return None
-        token_json: Dict[str, Any] = json.loads(token_text)
+        async with http.request(
+                "POST", auth_server_url, headers=headers, data=payload
+        ) as response:
+            token_text: str = await response.text()
+            if not token_text:
+                return None
+            token_json: Dict[str, Any] = json.loads(token_text)
 
-        if "access_token" not in token_json:
-            raise Exception(f"No access token found in {token_json}")
-        access_token: str = token_json["access_token"]
+            if "access_token" not in token_json:
+                raise Exception(f"No access token found in {token_json}")
+            access_token: str = token_json["access_token"]
         return access_token
 
 
 async def load_data():
-    server_url = "https://fhir.icanbwell.com/4_0_0"
+    fhir_server_url = "https://fhir.icanbwell.com/4_0_0/AuditEvent"
     assert os.environ.get("FHIR_CLIENT_ID"), "FHIR_CLIENT_ID environment variable must be set"
     assert os.environ.get("FHIR_CLIENT_SECRET"), "FHIR_CLIENT_SECRET environment variable must be set"
     client_id = os.environ.get("FHIR_CLIENT_ID")
     client_secret = os.environ.get("FHIR_CLIENT_SECRET")
 
-    login_token = await authenticate(client_id=client_id, client_secret=client_secret, fhir_server_url=server_url)
-    use_data_streaming = True
+    access_token = await authenticate(client_id=client_id, client_secret=client_secret, fhir_server_url=fhir_server_url)
+    use_data_streaming = False
     headers = {
         "Accept": "application/fhir+ndjson" if use_data_streaming else "application/json",
         "Content-Type": "application/fhir+json",
         "Accept-Encoding": "gzip,deflate",
+        "Authorization": f"Bearer {access_token}"
     }
 
-    async with ClientSession() as session:
-        async with session.get('http://localhost:3000/4_0_0/Condition/') as resp:
-            print(resp.status)
-            print(await resp.text())
+    async with ClientSession() as http:
+        async with http.request("GET", fhir_server_url, headers=headers) as response:
+            print(response.status)
+            print(await response.text())
 
 
 # Press the green button in the gutter to run the script.
