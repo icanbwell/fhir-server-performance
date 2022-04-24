@@ -1,11 +1,11 @@
 import asyncio
+import base64
 import json
 import os
 from typing import Dict, Any
 
-from aiohttp import ClientSession, ClientResponse, ClientPayloadError
+from aiohttp import ClientSession, ClientResponse
 from dotenv import load_dotenv
-import base64
 from furl import furl
 
 
@@ -15,7 +15,7 @@ async def authenticate(client_id, client_secret, fhir_server_url):
 
     async with ClientSession() as http:
         response: ClientResponse = await http.request(
-            "GET", str(full_uri)
+            "GET", str(full_uri), ssl=False
         )
         response_json = json.loads(await response.text())
         auth_server_url = response_json["token_endpoint"]
@@ -52,8 +52,8 @@ async def authenticate(client_id, client_secret, fhir_server_url):
         return access_token
 
 
-async def load_data():
-    fhir_server_url = "https://fhir.icanbwell.com/4_0_0/AuditEvent?_lastUpdated=gt2022-04-20&_lastUpdated=lt2022-04-22&_elements=id&_count=10&_getpagesoffset=0"
+async def load_data(fhir_server):
+    fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt2022-04-20&_lastUpdated=lt2022-04-22&_elements=id&_count=10&_getpagesoffset=0"
     # fhir_server_url = "http://localhost:3000/4_0_0/AuditEvent"
     assert os.environ.get("FHIR_CLIENT_ID"), "FHIR_CLIENT_ID environment variable must be set"
     assert os.environ.get("FHIR_CLIENT_SECRET"), "FHIR_CLIENT_SECRET environment variable must be set"
@@ -72,7 +72,7 @@ async def load_data():
     payload = {}
 
     async with ClientSession() as http:
-        async with http.request("GET", fhir_server_url, headers=headers, data=payload) as response:
+        async with http.request("GET", fhir_server_url, headers=headers, data=payload, ssl=False) as response:
             if use_data_streaming:
                 async for data, _ in response.content.iter_chunks():
                     print(data)
@@ -85,4 +85,4 @@ async def load_data():
 if __name__ == '__main__':
     load_dotenv()
 
-    asyncio.run(load_data())
+    asyncio.run(load_data(fhir_server="fhir-next.prod-mstarvac.icanbwell.com"))
