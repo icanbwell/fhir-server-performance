@@ -77,8 +77,8 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int):
     access_token = await authenticate(client_id=client_id, client_secret=client_secret, fhir_server_url=fhir_server_url)
     headers = {
         "Accept": "application/fhir+ndjson" if use_data_streaming else "application/fhir+json",
-        # "Content-Type": "application/fhir+json",
-        # "Accept-Encoding": "gzip,deflate",
+        "Content-Type": "application/fhir+json",
+        "Accept-Encoding": "gzip,deflate",
         "Authorization": f"Bearer {access_token}"
     }
 
@@ -93,10 +93,11 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int):
                 buffer = b""
                 chunk_number = 0
                 # if you want to receive data one line at a time
+                line: bytes
                 async for line in response.content:
                     chunk_number += 1
                     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                    print(f"[{chunk_number}] {dt_string}: {line.decode('ascii')}")
+                    print(f"[{chunk_number}] {dt_string}: {line}")
                 # if you want to receive data in a binary buffer
                 # async for data, _ in response.content.iter_chunks():
                 #     chunk_number += 1
