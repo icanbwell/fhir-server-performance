@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta
 
 from logging import Logger
-from typing import Any
+from typing import Any, List, Dict, Optional
 
 from helix_fhir_client_sdk.fhir_client import FhirClient
 
@@ -53,6 +53,10 @@ class ResourceDownloader:
     async def load_data(self, name):
         start_job = time.time()
 
+        def on_received_data(data: List[Dict[str, Any]], batch_number: Optional[int]) -> bool:
+            print(f"received batch: {batch_number}")
+            return True
+
         # Use a breakpoint in the code line below to debug your script.
         print(f'Hi, {name}')  # Press ⌘F8 to toggle the breakpoint.
         # from helix_fhir_client_sdk.fhir_client import FhirClient
@@ -62,7 +66,8 @@ class ResourceDownloader:
             page_size_for_retrieving_resources=self.page_size_for_retrieving_resources,
             page_size_for_retrieving_ids=self.page_size_for_retrieving_ids,
             last_updated_start_date=self.start_date,
-            last_updated_end_date=self.end_date
+            last_updated_end_date=self.end_date,
+            fn_handle_batch=on_received_data
         )
 
         end_job = time.time()

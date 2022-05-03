@@ -69,7 +69,9 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
     :param limit:
     :return: None
     """
-    fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt2022-02-02&_lastUpdated=lt2022-02-04&_count={limit}&_getpagesoffset=0"
+    greater_than = "2022-02-02"
+    less_than = "2022-02-04"
+    fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt{greater_than}&_lastUpdated=lt{less_than}&_count={limit}&_getpagesoffset=0"
     # fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt2022-04-20&_lastUpdated=lt2022-04-22&_elements=id&_count={limit}&_getpagesoffset=0"
     if retrieve_only_ids:
         fhir_server_url += "&_elements=id"
@@ -114,8 +116,9 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
                 line: bytes
                 async for line in response.content:
                     chunk_number += 1
-                    dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                    print(f"[{chunk_number}] {dt_string}", end='\r')
+                    # dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                    chunk_end_time = time.time()
+                    print(f"[{chunk_number}] {timedelta(seconds=chunk_end_time - start_job)}", end='\r')
                     # print(f"[{chunk_number}] {dt_string}: {line}", end='\r')
                 # if you want to receive data in a binary buffer
                 # async for data, _ in response.content.iter_chunks():
@@ -135,6 +138,7 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
 if __name__ == '__main__':
     load_dotenv()
 
+    prod_fhir_server_external = "fhir.icanbwell.com"
     prod_fhir_server = "fhir.prod-mstarvac.icanbwell.com"
     prod_next_fhir_server = "fhir-next.prod-mstarvac.icanbwell.com"
 
@@ -153,6 +157,12 @@ if __name__ == '__main__':
     # print("--------- Prod Next FHIR with data streaming, full resources -----")
     # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=1000,
     #                       use_atlas=False, retrieve_only_ids=False))
-    print("--------- Prod Next FHIR with data streaming and Atlas, full resources -----")
-    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=100000,
-                          use_atlas=True, retrieve_only_ids=False))
+    # print("--------- Prod Next FHIR with data streaming and Atlas, full resources -----")
+    # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=1000,
+    #                       use_atlas=True, retrieve_only_ids=False))
+    print("--------- Prod  FHIR external, full resources -----")
+    asyncio.run(load_data(fhir_server=prod_fhir_server_external, use_data_streaming=False, limit=100,
+                          use_atlas=False, retrieve_only_ids=False))
+    print("--------- Prod FHIR internal, full resources -----")
+    asyncio.run(load_data(fhir_server=prod_fhir_server, use_data_streaming=False, limit=100,
+                          use_atlas=False, retrieve_only_ids=False))
