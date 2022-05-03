@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 import time
@@ -7,6 +8,7 @@ from datetime import datetime, timedelta
 from logging import Logger
 from typing import Any, List, Dict, Optional
 
+import aiofiles
 from helix_fhir_client_sdk.fhir_client import FhirClient
 
 from helix_fhir_client_sdk.loggers.fhir_logger import FhirLogger
@@ -34,7 +36,9 @@ class MyLogger(FhirLogger):
 
 class ResourceDownloader:
     def __init__(self) -> None:
-        self.server_url = "https://fhir.icanbwell.com/4_0_0"
+        # fhir_server = "fhir.icanbwell.com"
+        fhir_server = "fhir-next.icanbwell.com"
+        self.server_url = f"https://{fhir_server}/4_0_0"
         assert os.environ.get("FHIR_CLIENT_ID"), "FHIR_CLIENT_ID environment variable must be set"
         assert os.environ.get("FHIR_CLIENT_SECRET"), "FHIR_CLIENT_SECRET environment variable must be set"
         self.auth_client_id = os.environ.get("FHIR_CLIENT_ID")
@@ -53,8 +57,12 @@ class ResourceDownloader:
     async def load_data(self, name):
         start_job = time.time()
 
-        def on_received_data(data: List[Dict[str, Any]], batch_number: Optional[int]) -> bool:
+        output_file = await aiofiles.open('output.json', mode='w')
+
+        async def on_received_data(data: List[Dict[str, Any]], batch_number: Optional[int]) -> bool:
             print(f"received batch: {batch_number}")
+            await output_file.write(json.dumps(data))
+            await output_file.flush()
             return True
 
         # Use a breakpoint in the code line below to debug your script.
@@ -71,6 +79,7 @@ class ResourceDownloader:
         )
 
         end_job = time.time()
+        await output_file.close()
         print(f"====== Received {len(resources)} resources in {timedelta(seconds=end_job - start_job)} =======")
 
         # for id_ in list_of_ids:
