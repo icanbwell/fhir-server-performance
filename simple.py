@@ -138,15 +138,21 @@ if __name__ == '__main__':
     prod_fhir_server = "fhir.prod-mstarvac.icanbwell.com"
     prod_next_fhir_server = "fhir-next.prod-mstarvac.icanbwell.com"
 
-    print("--------- Prod FHIR no data streaming -----")
-    asyncio.run(load_data(fhir_server=prod_fhir_server, use_data_streaming=False, limit=10000000,
-                          use_atlas=False, retrieve_only_ids=True))
-    print("--------- Prod Next FHIR no data streaming -----")
-    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=False, limit=10000000,
-                          use_atlas=False, retrieve_only_ids=True))
-    print("--------- Prod Next FHIR with data streaming -----")
-    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=10000000,
-                          use_atlas=False, retrieve_only_ids=True))
-    print("--------- Prod Next FHIR with data streaming and Atlas -----")
-    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=10000000,
-                          use_atlas=True, retrieve_only_ids=True))
+    # print("--------- Prod FHIR no data streaming -----")
+    # asyncio.run(load_data(fhir_server=prod_fhir_server, use_data_streaming=False, limit=10000000,
+    #                       use_atlas=False, retrieve_only_ids=True))
+    # print("--------- Prod Next FHIR no data streaming -----")
+    # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=False, limit=10000000,
+    #                       use_atlas=False, retrieve_only_ids=True))
+    # print("--------- Prod Next FHIR with data streaming -----")
+    # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=10000000,
+    #                       use_atlas=False, retrieve_only_ids=True))
+    # print("--------- Prod Next FHIR with data streaming and Atlas -----")
+    # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=10000000,
+    #                       use_atlas=True, retrieve_only_ids=True))
+    # print("--------- Prod Next FHIR with data streaming, full resources -----")
+    # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=1000,
+    #                       use_atlas=False, retrieve_only_ids=False))
+    print("--------- Prod Next FHIR with data streaming and Atlas, full resources -----")
+    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=100000,
+                          use_atlas=True, retrieve_only_ids=False))
