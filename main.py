@@ -65,9 +65,20 @@ class ResourceDownloader:
             "total_bytes": 0
         }
 
+        id_count_holder = {
+            "resource_count": 0,
+            "total_bytes": 0
+        }
+
+        resources: List[Dict[str, Any]] = []
+
         async def on_received_data(resource_count_holder1: Dict[str, int], data: List[Dict[str, Any]],
                                    batch_number: Optional[int]) -> bool:
             # print(f"received batch: {batch_number}")
+            if len(resources) == 0:
+                print("\nLoading resources\n")  # clear out any print statements from getting ids
+            for resource in data:
+                resources.append(resource)
             chunk_end_time = time.time()
             json_result: str = json.dumps(data)
             resource_count_holder1["resource_count"] = resource_count_holder1["resource_count"] + len(data)
@@ -76,24 +87,49 @@ class ResourceDownloader:
             time_difference = timedelta(seconds=chunk_end_time - start_job)
             kilo_bytes_per_sec = resource_count_holder1["total_bytes"] / (time_difference.total_seconds() * 1024)
             total_megabytes = resource_count_holder1["total_bytes"] / (1024 * 1024)
-            print(f"[{resource_count_holder1['resource_count']}] {time_difference},"
-                  + f" Total MB={total_megabytes} KB/sec={kilo_bytes_per_sec:.2f}",
+            print(f"[{resource_count_holder1['resource_count']:,}] {time_difference},"
+                  + f" Total MB={total_megabytes:.0f} KB/sec={kilo_bytes_per_sec:.2f}",
                   end='\r')
             await output_file.write(json_result)
             await output_file.flush()
             return True
 
+        async def on_error(error: str, resources1: str, page_number: Optional[int]) -> bool:
+            print(f"=== ERROR: {error} ===")
+            return True
+
+        async def on_received_ids(resource_count_holder1: Dict[str, int], data: List[Dict[str, Any]],
+                                  batch_number: Optional[int]) -> bool:
+            chunk_end_time = time.time()
+            json_result: str = json.dumps(data)
+            resource_count_holder1["resource_count"] = resource_count_holder1["resource_count"] + len(data)
+            resource_count_holder1["total_bytes"] = resource_count_holder1["total_bytes"] + len(
+                json_result.encode("utf-8"))
+            time_difference = timedelta(seconds=chunk_end_time - start_job)
+            kilo_bytes_per_sec = resource_count_holder1["total_bytes"] / (time_difference.total_seconds() * 1024)
+            total_megabytes = resource_count_holder1["total_bytes"] / (1024 * 1024)
+            print(f"[{resource_count_holder1['resource_count']:,}] {time_difference},"
+                  + f" Total MB={total_megabytes:.0f} KB/sec={kilo_bytes_per_sec:.2f}",
+                  end='\r')
+            return True
+
+        async def on_received_streaming_chunk(data: bytes, page_number: Optional[int]) -> bool:
+            return True
+
         # Use a breakpoint in the code line below to debug your script.
-        print(f'Getting ids...')  # Press ⌘F8 to toggle the breakpoint.
+        print(f'Getting ids from {self.server_url}...')  # Press ⌘F8 to toggle the breakpoint.
         # from helix_fhir_client_sdk.fhir_client import FhirClient
         fhir_client = await self.create_fhir_client()
-        resources = await fhir_client.get_resources_by_query_and_last_updated_async(
+        await fhir_client.get_resources_by_query_and_last_updated_async(
             concurrent_requests=self.concurrent_requests,
             page_size_for_retrieving_resources=self.page_size_for_retrieving_resources,
             page_size_for_retrieving_ids=self.page_size_for_retrieving_ids,
             last_updated_start_date=self.start_date,
             last_updated_end_date=self.end_date,
-            fn_handle_batch=lambda data, batch_number: on_received_data(resource_count_holder, data, batch_number)
+            fn_handle_batch=lambda data, batch_number: on_received_data(resource_count_holder, data, batch_number),
+            fn_handle_error=on_error,
+            fn_handle_ids=lambda data, batch_number: on_received_ids(id_count_holder, data, batch_number),
+            fn_handle_streaming_chunk=on_received_streaming_chunk
         )
 
         end_job = time.time()
