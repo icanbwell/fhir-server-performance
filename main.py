@@ -48,12 +48,13 @@ class ResourceDownloader:
         assert os.environ.get("FHIR_CLIENT_TAG"), "FHIR_CLIENT_TAG environment variable must be set"
         self.client = os.environ.get("FHIR_CLIENT_TAG")
         self.auth_scopes = [f"user/{self.resource}.read", f"access/{self.client}.*"]
-        self.page_size_for_retrieving_ids = 120000
+        self.page_size_for_retrieving_ids = 10000
         self.start_date = datetime.strptime("2021-12-31", "%Y-%m-%d")
         self.end_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
         assert self.end_date > self.start_date
         self.concurrent_requests = 10
-        self.page_size_for_retrieving_resources = 1000
+        self.page_size_for_retrieving_resources = 100
+        self.use_data_streaming: bool = False
 
     async def load_data(self, name):
         start_job = time.time()
@@ -225,8 +226,9 @@ class ResourceDownloader:
         fhir_client = fhir_client.resource(self.resource)
         fhir_client = fhir_client.logger(MyLogger())
         # fhir_client = fhir_client.additional_parameters(["_useAtlas=1"])
-        fhir_client = fhir_client.additional_parameters(["_streamResponse=1"])
-        fhir_client = fhir_client.use_data_streaming(True)
+        if self.use_data_streaming:
+            fhir_client = fhir_client.additional_parameters(["_streamResponse=1"])
+            fhir_client = fhir_client.use_data_streaming(True)
         return fhir_client
 
 

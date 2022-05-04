@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "72be9e5cbc00498f0c0c46b6869bcb3ff518f2d08e00fb239868f0dd1e6fd722"
+            "sha256": "d93984b17a953aad69f35d1f177a0e5420719333111b6a46ff9955e3b4f2cd31"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -224,11 +224,11 @@
         },
         "helix.fhir.client.sdk": {
             "hashes": [
-                "sha256:009ec4b8f722399e229ef8ce9261c3e97f8d90652537f51876d2cf9e2b4d9cc2",
-                "sha256:9b1a9f12c5cd19116713630fb2f59f37fc0cb4750d282a85c33fb4958743aec1"
+                "sha256:6167c89b6cc7bdff322822f769cdf8fa50c892daa0d071c613c490f0630e3222",
+                "sha256:89334e97ddf7d99530f5baf989c7384ee0265b6f162198ebb1004e311b39e993"
             ],
             "index": "pypi",
-            "version": "==1.0.6"
+            "version": "==1.0.7"
         },
         "idna": {
             "hashes": [
