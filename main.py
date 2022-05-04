@@ -37,8 +37,8 @@ class MyLogger(FhirLogger):
 
 class ResourceDownloader:
     def __init__(self) -> None:
-        fhir_server = "fhir.icanbwell.com"
-        # fhir_server = "fhir-next.icanbwell.com"
+        # fhir_server = "fhir.icanbwell.com"
+        fhir_server = "fhir-next.icanbwell.com"
         self.server_url = f"https://{fhir_server}/4_0_0"
         assert os.environ.get("FHIR_CLIENT_ID"), "FHIR_CLIENT_ID environment variable must be set"
         assert os.environ.get("FHIR_CLIENT_SECRET"), "FHIR_CLIENT_SECRET environment variable must be set"
@@ -61,21 +61,30 @@ class ResourceDownloader:
         output_file = await aiofiles.open('output.json', mode='w')
 
         resource_count_holder = {
-            "resource_count": 0
+            "resource_count": 0,
+            "total_bytes": 0
         }
 
         async def on_received_data(resource_count_holder1: Dict[str, int], data: List[Dict[str, Any]],
                                    batch_number: Optional[int]) -> bool:
             # print(f"received batch: {batch_number}")
             chunk_end_time = time.time()
-            resource_count_holder1["resource_count"] = resource_count_holder1["resource_count"]  + len(data)
-            print(f"[{resource_count_holder1['resource_count']}] {timedelta(seconds=chunk_end_time - start_job)}", end='\r')
-            await output_file.write(json.dumps(data))
+            json_result: str = json.dumps(data)
+            resource_count_holder1["resource_count"] = resource_count_holder1["resource_count"] + len(data)
+            resource_count_holder1["total_bytes"] = resource_count_holder1["total_bytes"] + len(
+                json_result.encode("utf-8"))
+            time_difference = timedelta(seconds=chunk_end_time - start_job)
+            kilo_bytes_per_sec = resource_count_holder1["total_bytes"] / (time_difference.total_seconds() * 1024)
+            total_megabytes = resource_count_holder1["total_bytes"] / (1024 * 1024)
+            print(f"[{resource_count_holder1['resource_count']}] {time_difference},"
+                  + f" Total MB={total_megabytes} KB/sec={kilo_bytes_per_sec:.2f}",
+                  end='\r')
+            await output_file.write(json_result)
             await output_file.flush()
             return True
 
         # Use a breakpoint in the code line below to debug your script.
-        print(f'Hi, {name}')  # Press ⌘F8 to toggle the breakpoint.
+        print(f'Getting ids...')  # Press ⌘F8 to toggle the breakpoint.
         # from helix_fhir_client_sdk.fhir_client import FhirClient
         fhir_client = await self.create_fhir_client()
         resources = await fhir_client.get_resources_by_query_and_last_updated_async(
