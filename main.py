@@ -155,7 +155,7 @@ class ResourceDownloader:
             return True
 
         # Use a breakpoint in the code line below to debug your script.
-        print(f'Calling {self.server_url}...')  # Press ⌘F8 to toggle the breakpoint.
+        print(f'Calling {self.server_url} with {self.concurrent_requests} parallel connections...')
         # from helix_fhir_client_sdk.fhir_client import FhirClient
         fhir_client = await self.create_fhir_client()
         await fhir_client.get_resources_by_query_and_last_updated_async(
@@ -174,7 +174,7 @@ class ResourceDownloader:
 
         end_job = time.time()
         await output_file.close()
-        print(f"====== Received {len(resources)} resources in {timedelta(seconds=end_job - start_job)} =======")
+        print(f"\n====== Received {len(resources)} resources in {timedelta(seconds=end_job - start_job)} =======")
 
         # for id_ in list_of_ids:
         #     print(id_)
