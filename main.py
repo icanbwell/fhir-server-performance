@@ -80,9 +80,11 @@ class ResourceDownloader:
 
         resources: List[Dict[str, Any]] = []
 
-        async def on_received_data(resource_count_holder1: Dict[str, Union[int, float]], data: List[Dict[str, Any]],
+        async def on_received_data(id_count_holder1: Dict[str, Union[int, float]],
+                                   resource_count_holder1: Dict[str, Union[int, float]], data: List[Dict[str, Any]],
                                    batch_number: Optional[int]) -> bool:
             # print(f"received batch: {batch_number}")
+            number_of_ids_to_expect: int = id_count_holder1["resource_count"]
             if resource_count_holder1["startTime"] == 0.0:
                 print("\n")
                 resource_count_holder1["startTime"] = time.time()
@@ -99,9 +101,12 @@ class ResourceDownloader:
             total_megabytes = resource_count_holder1["total_bytes"] / (1024 * 1024)
             resource_count = resource_count_holder1['resource_count']
             resource_count_per_sec = resource_count / time_difference.total_seconds()
-            print(f"Resources: [{resource_count :,}] {time_difference},"
+            remaining_resource_count = number_of_ids_to_expect - resource_count
+            estimate_remaining_time = (remaining_resource_count / resource_count_per_sec)
+            print(f"Resources: [{resource_count :,} / {number_of_ids_to_expect:,}] {time_difference},"
                   + f" Resource/sec={resource_count_per_sec:.2f}"
-                  + f" Total MB={total_megabytes:.0f} KB/sec={kilo_bytes_per_sec:.2f}",
+                  + f" Total MB={total_megabytes:.0f} KB/sec={kilo_bytes_per_sec:.2f}"
+                  + f" Remaining={timedelta(seconds=estimate_remaining_time)}",
                   end='\r')
             await output_file.write(json_result)
             await output_file.flush()
@@ -111,21 +116,21 @@ class ResourceDownloader:
             print(f"=== ERROR: {error} ===")
             return True
 
-        async def on_received_ids(resource_count_holder1: Dict[str, Union[int, float]], data: List[Dict[str, Any]],
+        async def on_received_ids(id_count_holder1: Dict[str, Union[int, float]], data: List[Dict[str, Any]],
                                   batch_number: Optional[int]) -> bool:
-            if resource_count_holder1["startTime"] == 0.0:
+            if id_count_holder1["startTime"] == 0.0:
                 print("\n")
-                resource_count_holder1["startTime"] = time.time()
+                id_count_holder1["startTime"] = time.time()
             chunk_end_time = time.time()
             json_result: str = json.dumps(data)
-            resource_count_holder1["resource_count"] = resource_count_holder1["resource_count"] + len(data)
-            resource_count_holder1["total_bytes"] = resource_count_holder1["total_bytes"] + len(
+            id_count_holder1["resource_count"] = id_count_holder1["resource_count"] + len(data)
+            id_count_holder1["total_bytes"] = id_count_holder1["total_bytes"] + len(
                 json_result.encode("utf-8"))
-            time_difference = timedelta(seconds=chunk_end_time - resource_count_holder1["startTime"])
-            kilo_bytes_per_sec = resource_count_holder1["total_bytes"] / (
+            time_difference = timedelta(seconds=chunk_end_time - id_count_holder1["startTime"])
+            kilo_bytes_per_sec = id_count_holder1["total_bytes"] / (
                     time_difference.total_seconds() * 1024) if time_difference.total_seconds() > 0.0 else 0
-            total_megabytes = resource_count_holder1["total_bytes"] / (1024 * 1024)
-            resource_count = resource_count_holder1['resource_count']
+            total_megabytes = id_count_holder1["total_bytes"] / (1024 * 1024)
+            resource_count = id_count_holder1['resource_count']
             resource_count_per_sec = resource_count / time_difference.total_seconds()
             print(f"Ids: [{resource_count:,}] {time_difference},"
                   + f" Resource/sec={resource_count_per_sec:.2f}"
@@ -142,7 +147,7 @@ class ResourceDownloader:
             resource_count_holder1["total_bytes"] = resource_count_holder1["total_bytes"] + len(data)
             time_difference = timedelta(seconds=chunk_end_time - resource_count_holder1["startTime"])
             kilo_bytes_per_sec = resource_count_holder1["total_bytes"] / (
-                        time_difference.total_seconds() * 1024) if time_difference.total_seconds() > 0.0 else 0
+                    time_difference.total_seconds() * 1024) if time_difference.total_seconds() > 0.0 else 0
             total_megabytes = resource_count_holder1["total_bytes"] / (1024 * 1024)
             print(f"Streaming: [{resource_count_holder1['resource_count']:,}] {time_difference},"
                   + f" Total MB={total_megabytes:.0f} KB/sec={kilo_bytes_per_sec:.2f}",
@@ -150,7 +155,7 @@ class ResourceDownloader:
             return True
 
         # Use a breakpoint in the code line below to debug your script.
-        print(f'Getting ids from {self.server_url}...')  # Press ⌘F8 to toggle the breakpoint.
+        print(f'Calling {self.server_url}...')  # Press ⌘F8 to toggle the breakpoint.
         # from helix_fhir_client_sdk.fhir_client import FhirClient
         fhir_client = await self.create_fhir_client()
         await fhir_client.get_resources_by_query_and_last_updated_async(
@@ -159,7 +164,8 @@ class ResourceDownloader:
             page_size_for_retrieving_ids=self.page_size_for_retrieving_ids,
             last_updated_start_date=self.start_date,
             last_updated_end_date=self.end_date,
-            fn_handle_batch=lambda data, batch_number: on_received_data(resource_count_holder, data, batch_number),
+            fn_handle_batch=lambda data, batch_number: on_received_data(id_count_holder, resource_count_holder, data,
+                                                                        batch_number),
             fn_handle_error=on_error,
             fn_handle_ids=lambda data, batch_number: on_received_ids(id_count_holder, data, batch_number),
             fn_handle_streaming_chunk=lambda data, batch_number: on_received_streaming_chunk(streaming_count_holder,
