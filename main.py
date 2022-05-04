@@ -48,12 +48,12 @@ class ResourceDownloader:
         assert os.environ.get("FHIR_CLIENT_TAG"), "FHIR_CLIENT_TAG environment variable must be set"
         self.client = os.environ.get("FHIR_CLIENT_TAG")
         self.auth_scopes = [f"user/{self.resource}.read", f"access/{self.client}.*"]
-        self.page_size_for_retrieving_ids = 10000
+        self.page_size_for_retrieving_ids = 120000
         self.start_date = datetime.strptime("2021-12-31", "%Y-%m-%d")
         self.end_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
         assert self.end_date > self.start_date
         self.concurrent_requests = 10
-        self.page_size_for_retrieving_resources = 100
+        self.page_size_for_retrieving_resources = 1000
 
     async def load_data(self, name):
         start_job = time.time()
@@ -74,7 +74,13 @@ class ResourceDownloader:
             "startTime": 0.0
         }
 
-        streaming_count_holder = {
+        streaming_id_count_holder = {
+            "resource_count": 0,
+            "total_bytes": 0,
+            "startTime": 0.0
+        }
+
+        streaming_chunk_count_holder = {
             "resource_count": 0,
             "total_bytes": 0,
             "startTime": 0.0
@@ -140,6 +146,25 @@ class ResourceDownloader:
                   end='\r')
             return True
 
+        async def on_received_streaming_ids(resource_count_holder1: Dict[str, Union[int, float]],
+                                            data: bytes, page_number: Optional[int]) -> bool:
+            if resource_count_holder1["startTime"] == 0.0:
+                print("\n")
+                resource_count_holder1["startTime"] = time.time()
+            chunk_end_time = time.time()
+            resource_count_holder1["resource_count"] += 1
+            resource_count_holder1["total_bytes"] = resource_count_holder1["total_bytes"] + len(data)
+            time_difference = timedelta(seconds=chunk_end_time - resource_count_holder1["startTime"])
+            kilo_bytes_per_sec = resource_count_holder1["total_bytes"] / (
+                    time_difference.total_seconds() * 1024) if time_difference.total_seconds() > 0.0 else 0
+            total_megabytes = resource_count_holder1["total_bytes"] / (1024 * 1024)
+            print(f"Streaming ids: [{resource_count_holder1['resource_count']:,}] {time_difference},"
+                  + f" Total MB={total_megabytes:.0f} KB/sec={kilo_bytes_per_sec:.2f}",
+                  end='\r')
+            await output_file_streaming_ids.write(data)
+            # await output_file.flush()
+            return True
+
         async def on_received_streaming_chunk(resource_count_holder1: Dict[str, Union[int, float]],
                                               data: bytes, page_number: Optional[int]) -> bool:
             if resource_count_holder1["startTime"] == 0.0:
@@ -152,14 +177,10 @@ class ResourceDownloader:
             kilo_bytes_per_sec = resource_count_holder1["total_bytes"] / (
                     time_difference.total_seconds() * 1024) if time_difference.total_seconds() > 0.0 else 0
             total_megabytes = resource_count_holder1["total_bytes"] / (1024 * 1024)
-            # print(f"Streaming: [{resource_count_holder1['resource_count']:,}] {time_difference},"
-            #       + f" Total MB={total_megabytes:.0f} KB/sec={kilo_bytes_per_sec:.2f}",
-            #       end='\r')
-            json_string = data.decode("utf-8")
-            if "versionId" in json_string:
-                await output_file_streaming_resources.write(data)
-            else:
-                await output_file_streaming_ids.write(data)
+            print(f"Streaming chunks: [{resource_count_holder1['resource_count']:,}] {time_difference},"
+                  + f" Total MB={total_megabytes:.0f} KB/sec={kilo_bytes_per_sec:.2f}",
+                  end='\r')
+            await output_file_streaming_resources.write(data)
             # await output_file.flush()
             return True
 
@@ -177,8 +198,11 @@ class ResourceDownloader:
                                                                         batch_number),
             fn_handle_error=on_error,
             fn_handle_ids=lambda data, batch_number: on_received_ids(id_count_holder, data, batch_number),
-            fn_handle_streaming_chunk=lambda data, batch_number: on_received_streaming_chunk(streaming_count_holder,
-                                                                                             data, batch_number)
+            fn_handle_streaming_ids=lambda data, batch_number: on_received_streaming_ids(streaming_id_count_holder,
+                                                                                         data, batch_number),
+            fn_handle_streaming_chunk=lambda data, batch_number: on_received_streaming_chunk(
+                streaming_chunk_count_holder,
+                data, batch_number)
         )
 
         end_job = time.time()
