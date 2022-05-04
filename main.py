@@ -25,7 +25,7 @@ class MyLogger(FhirLogger):
         """
         Handle messages at INFO level
         """
-        # self._internal_logger.info(param)
+        self._internal_logger.info(param)
         pass
 
     def error(self, param: Any) -> None:
@@ -100,7 +100,7 @@ class ResourceDownloader:
                     time_difference.total_seconds() * 1024) if time_difference.total_seconds() > 0.0 else 0
             total_megabytes = resource_count_holder1["total_bytes"] / (1024 * 1024)
             resource_count = resource_count_holder1['resource_count']
-            resource_count_per_sec = resource_count / time_difference.total_seconds()
+            resource_count_per_sec = resource_count / time_difference.total_seconds() if time_difference.total_seconds() > 0.0 else 0
             remaining_resource_count = number_of_ids_to_expect - resource_count
             estimate_remaining_time = (remaining_resource_count / resource_count_per_sec)
             print(f"Resources: [{resource_count :,} / {number_of_ids_to_expect:,}] {time_difference},"
@@ -131,7 +131,7 @@ class ResourceDownloader:
                     time_difference.total_seconds() * 1024) if time_difference.total_seconds() > 0.0 else 0
             total_megabytes = id_count_holder1["total_bytes"] / (1024 * 1024)
             resource_count = id_count_holder1['resource_count']
-            resource_count_per_sec = resource_count / time_difference.total_seconds()
+            resource_count_per_sec = resource_count / time_difference.total_seconds() if time_difference.total_seconds() > 0.0 else 0
             print(f"Ids: [{resource_count:,}] {time_difference},"
                   + f" Resource/sec={resource_count_per_sec:.2f}"
                   + f" Total MB={total_megabytes:.0f} KB/sec={kilo_bytes_per_sec:.2f}",
@@ -164,8 +164,8 @@ class ResourceDownloader:
             page_size_for_retrieving_ids=self.page_size_for_retrieving_ids,
             last_updated_start_date=self.start_date,
             last_updated_end_date=self.end_date,
-            fn_handle_batch=lambda data, batch_number: on_received_data(id_count_holder, resource_count_holder, data,
-                                                                        batch_number),
+            # fn_handle_batch=lambda data, batch_number: on_received_data(id_count_holder, resource_count_holder, data,
+            #                                                             batch_number),
             fn_handle_error=on_error,
             fn_handle_ids=lambda data, batch_number: on_received_ids(id_count_holder, data, batch_number),
             fn_handle_streaming_chunk=lambda data, batch_number: on_received_streaming_chunk(streaming_count_holder,
@@ -187,6 +187,8 @@ class ResourceDownloader:
         fhir_client = fhir_client.resource(self.resource)
         fhir_client = fhir_client.logger(MyLogger())
         # fhir_client = fhir_client.additional_parameters(["_useAtlas=1"])
+        fhir_client = fhir_client.additional_parameters(["_streamResponse=1"])
+        fhir_client = fhir_client.use_data_streaming(True)
         return fhir_client
 
 
