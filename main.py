@@ -37,8 +37,8 @@ class MyLogger(FhirLogger):
 
 class ResourceDownloader:
     def __init__(self) -> None:
-        # fhir_server = "fhir.icanbwell.com"
-        fhir_server = "fhir-next.icanbwell.com"
+        fhir_server = "fhir.icanbwell.com"
+        # fhir_server = "fhir-next.icanbwell.com"
         self.server_url = f"https://{fhir_server}/4_0_0"
         assert os.environ.get("FHIR_CLIENT_ID"), "FHIR_CLIENT_ID environment variable must be set"
         assert os.environ.get("FHIR_CLIENT_SECRET"), "FHIR_CLIENT_SECRET environment variable must be set"
@@ -55,6 +55,7 @@ class ResourceDownloader:
         self.concurrent_requests = 10
         self.page_size_for_retrieving_resources = 100
         self.use_data_streaming: bool = False
+        self.use_atlas: bool = False
 
     async def load_data(self, name):
         start_job = time.time()
@@ -225,7 +226,8 @@ class ResourceDownloader:
         fhir_client = fhir_client.auth_scopes(self.auth_scopes)
         fhir_client = fhir_client.resource(self.resource)
         fhir_client = fhir_client.logger(MyLogger())
-        # fhir_client = fhir_client.additional_parameters(["_useAtlas=1"])
+        if self.use_atlas:
+            fhir_client = fhir_client.additional_parameters(["_useAtlas=1"])
         if self.use_data_streaming:
             fhir_client = fhir_client.additional_parameters(["_streamResponse=1"])
             fhir_client = fhir_client.use_data_streaming(True)
