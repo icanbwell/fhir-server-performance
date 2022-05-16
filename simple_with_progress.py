@@ -121,13 +121,13 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
 
                     # if you want to receive data one line at a time
                     line: bytes
-                    async for line in response.content:
+                    async for line in response.content.iter_chunked(n=1000):
                         # await asyncio.sleep(0)
                         chunk_number += 1
                         # dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
                         chunk_end_time = time.time()
                         file.write(line)
-                        file.write("\n".encode('utf-8'))
+                        # file.write("\n".encode('utf-8'))
                         print(f"[{chunk_number}] {timedelta(seconds=chunk_end_time - start_job)}", end='\r')
                     #     print(f"[{chunk_number}] {dt_string}: {line}", end='\r')
                     # if you want to receive data in a binary buffer
@@ -172,7 +172,7 @@ if __name__ == '__main__':
     #                       use_atlas=False, retrieve_only_ids=False))
     print("--------- Prod Next FHIR with data streaming and Atlas, full resources -----")
     asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=10000,
-                          use_atlas=True, retrieve_only_ids=True))
+                          use_atlas=True, retrieve_only_ids=False))
     # print("--------- Prod  FHIR external, full resources -----")
     # asyncio.run(load_data(fhir_server=prod_fhir_server_external, use_data_streaming=False, limit=100,
     #                       use_atlas=False, retrieve_only_ids=False))

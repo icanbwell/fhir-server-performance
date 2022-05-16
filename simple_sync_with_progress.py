@@ -123,13 +123,13 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
                     try:
                         # if you want to receive data one line at a time
                         line: bytes
-                        for line in response.iter_lines():
+                        for line in response.iter_content(chunk_size=1000):
                             # await asyncio.sleep(0)
                             chunk_number += 1
                             # dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
                             chunk_end_time = time.time()
                             file.write(line)
-                            file.write("\n".encode('utf-8'))
+                            # file.write("\n".encode('utf-8'))
                             print(f"[{chunk_number}] {timedelta(seconds=chunk_end_time - start_job)}", end='\r')
                     except ChunkedEncodingError as e:
                         print(response)
