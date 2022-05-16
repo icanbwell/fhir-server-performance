@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from furl import furl
 from requests import Session, Response
+from requests.exceptions import ChunkedEncodingError
 
 
 async def authenticate(client_id, client_secret, fhir_server_url):
@@ -110,7 +111,7 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     print(f"{dt_string}: Calling {fhir_server_url} with Atlas={use_atlas}")
     with Session() as http:
-        with http.request("GET", fhir_server_url, headers=headers, data=payload) as response:
+        with http.request("GET", fhir_server_url, headers=headers, data=payload, stream=use_data_streaming) as response:
             dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             print(f"{dt_string}: Received response for {fhir_server_url} with Atlas={use_atlas}.")
             print(f"{dt_string}: Headers= {response.headers}")
@@ -119,16 +120,19 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
                 if use_data_streaming:
                     buffer = b""
 
-                    # if you want to receive data one line at a time
-                    line: bytes
-                    for line in response.iter_lines():
-                        # await asyncio.sleep(0)
-                        chunk_number += 1
-                        # dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                        chunk_end_time = time.time()
-                        file.write(line)
-                        file.write("\n".encode('utf-8'))
-                        print(f"[{chunk_number}] {timedelta(seconds=chunk_end_time - start_job)}", end='\r')
+                    try:
+                        # if you want to receive data one line at a time
+                        line: bytes
+                        for line in response.iter_lines():
+                            # await asyncio.sleep(0)
+                            chunk_number += 1
+                            # dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                            chunk_end_time = time.time()
+                            file.write(line)
+                            file.write("\n".encode('utf-8'))
+                            print(f"[{chunk_number}] {timedelta(seconds=chunk_end_time - start_job)}", end='\r')
+                    except ChunkedEncodingError as e:
+                        print(response)
                     #     print(f"[{chunk_number}] {dt_string}: {line}", end='\r')
                     # if you want to receive data in a binary buffer
                     # async for data, _ in response.content.iter_chunks():
@@ -172,7 +176,7 @@ if __name__ == '__main__':
     #                       use_atlas=False, retrieve_only_ids=False))
     print("--------- Prod Next FHIR with data streaming and Atlas, full resources -----")
     asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=10000,
-                          use_atlas=True, retrieve_only_ids=True))
+                          use_atlas=True, retrieve_only_ids=False))
     # print("--------- Prod  FHIR external, full resources -----")
     # asyncio.run(load_data(fhir_server=prod_fhir_server_external, use_data_streaming=False, limit=100,
     #                       use_atlas=False, retrieve_only_ids=False))
