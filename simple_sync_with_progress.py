@@ -6,9 +6,9 @@ from typing import Dict, Any
 import time
 from datetime import datetime, timedelta
 
-from aiohttp import ClientSession, ClientResponse, ClientTimeout
 from dotenv import load_dotenv
 from furl import furl
+from requests import Session, Response
 
 
 async def authenticate(client_id, client_secret, fhir_server_url):
@@ -16,11 +16,11 @@ async def authenticate(client_id, client_secret, fhir_server_url):
     full_uri /= ".well-known/smart-configuration"
 
     # print(f"Calling {full_uri}")
-    async with ClientSession() as http:
-        response: ClientResponse = await http.request(
-            "GET", str(full_uri), ssl=False
+    with Session() as http:
+        response: Response = http.request(
+            "GET", str(full_uri)
         )
-        response_json = json.loads(await response.text())
+        response_json = json.loads(response.text)
         auth_server_url = response_json["token_endpoint"]
 
     auth_scopes = ["user/AuditEvent.read", "access/medstar.*"]
@@ -42,11 +42,11 @@ async def authenticate(client_id, client_secret, fhir_server_url):
     }
 
     # print(f"Calling {auth_server_url}")
-    async with ClientSession() as http:
-        async with http.request(
+    with Session() as http:
+        with http.request(
                 "POST", auth_server_url, headers=headers, data=payload
         ) as response:
-            token_text: str = await response.text()
+            token_text: str = response.text
             if not token_text:
                 return None
             token_json: Dict[str, Any] = json.loads(token_text)
@@ -109,11 +109,11 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
 
     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     print(f"{dt_string}: Calling {fhir_server_url} with Atlas={use_atlas}")
-    async with ClientSession(timeout=ClientTimeout(total=0)) as http:
-        async with http.request("GET", fhir_server_url, headers=headers, data=payload, ssl=False) as response:
+    with Session() as http:
+        with http.request("GET", fhir_server_url, headers=headers, data=payload) as response:
             dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             print(f"{dt_string}: Received response for {fhir_server_url} with Atlas={use_atlas}.")
-            # print(f"{dt_string}: Headers= {response.headers}")
+            print(f"{dt_string}: Headers= {response.headers}")
             with open('output.json', mode='wb') as file:
                 chunk_number = 0
                 if use_data_streaming:
@@ -121,7 +121,7 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
 
                     # if you want to receive data one line at a time
                     line: bytes
-                    async for line in response.content:
+                    for line in response.iter_lines():
                         # await asyncio.sleep(0)
                         chunk_number += 1
                         # dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
@@ -137,8 +137,8 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
                     #     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
                     #     print(f"[{chunk_number}] {dt_string}: {data}")
                 else:
-                    print(response.status)
-                    print(await response.text())
+                    print(response.status_code)
+                    print(response.text)
     end_job = time.time()
     print(f"====== Received {chunk_number} resources in {timedelta(seconds=end_job - start_job)}"
           f" with Atlas={use_atlas} =======")
