@@ -37,8 +37,9 @@ class MyLogger(FhirLogger):
 
 class ResourceDownloader:
     def __init__(self) -> None:
-        fhir_server = "fhir.icanbwell.com"
-        # fhir_server = "fhir-next.icanbwell.com"
+        # fhir_server = "fhir.icanbwell.com"
+        fhir_server = "fhir-next.icanbwell.com"
+        # fhir_server = "fhir-next.prod-ue1.icanbwell.com"
         self.server_url = f"https://{fhir_server}/4_0_0"
         assert os.environ.get("FHIR_CLIENT_ID"), "FHIR_CLIENT_ID environment variable must be set"
         assert os.environ.get("FHIR_CLIENT_SECRET"), "FHIR_CLIENT_SECRET environment variable must be set"
@@ -55,7 +56,7 @@ class ResourceDownloader:
         self.concurrent_requests = 10
         self.page_size_for_retrieving_resources = 100
         self.use_data_streaming: bool = False
-        self.use_atlas: bool = False
+        self.use_atlas: bool = True
 
     async def load_data(self, name):
         start_job = time.time()
@@ -188,6 +189,7 @@ class ResourceDownloader:
 
         # Use a breakpoint in the code line below to debug your script.
         print(f'Calling {self.server_url} with {self.concurrent_requests} parallel connections...')
+        print(f'From {self.start_date} to {self.end_date}, atlas:{self.use_atlas}, streaming={self.use_data_streaming}')
         # from helix_fhir_client_sdk.fhir_client import FhirClient
         fhir_client = await self.create_fhir_client()
         await fhir_client.get_resources_by_query_and_last_updated_async(

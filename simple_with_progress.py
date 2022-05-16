@@ -57,9 +57,11 @@ async def authenticate(client_id, client_secret, fhir_server_url):
         return access_token
 
 
-async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_atlas: bool, retrieve_only_ids: bool):
+async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_atlas: bool, retrieve_only_ids: bool,
+                    use_access_index: bool = False):
     """
     loads data
+    :param use_access_index:
     :param retrieve_only_ids:
     :type retrieve_only_ids:
     :param use_atlas:
@@ -79,6 +81,8 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
         fhir_server_url += "&_useAtlas=1"
     if use_data_streaming:
         fhir_server_url += "&_streamResponse=1"
+    if use_access_index:
+        fhir_server_url += "&_useAccessIndex=1"
     # _useTwoStepOptimization
     # fhir_server_url += "&_useTwoStepOptimization=1"
     # cursor_batch_size = 1000000
@@ -94,7 +98,8 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
         "Accept": "application/fhir+ndjson" if use_data_streaming else "application/fhir+json",
         "Content-Type": "application/fhir+json",
         "Accept-Encoding": "gzip,deflate",
-        "Authorization": f"Bearer {access_token}"
+        "Authorization": f"Bearer {access_token}",
+        "Connection": "keep-alive"
     }
 
     payload = {}
@@ -115,11 +120,12 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
                 # if you want to receive data one line at a time
                 line: bytes
                 async for line in response.content:
+                    # await asyncio.sleep(0)
                     chunk_number += 1
                     # dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
                     chunk_end_time = time.time()
                     print(f"[{chunk_number}] {timedelta(seconds=chunk_end_time - start_job)}", end='\r')
-                    # print(f"[{chunk_number}] {dt_string}: {line}", end='\r')
+                #     print(f"[{chunk_number}] {dt_string}: {line}", end='\r')
                 # if you want to receive data in a binary buffer
                 # async for data, _ in response.content.iter_chunks():
                 #     chunk_number += 1
@@ -140,7 +146,7 @@ if __name__ == '__main__':
 
     prod_fhir_server_external = "fhir.icanbwell.com"
     prod_fhir_server = "fhir.prod-mstarvac.icanbwell.com"
-    prod_next_fhir_server = "fhir-next.prod-mstarvac.icanbwell.com"
+    prod_next_fhir_server = "fhir-next.icanbwell.com"
 
     # print("--------- Prod FHIR no data streaming -----")
     # asyncio.run(load_data(fhir_server=prod_fhir_server, use_data_streaming=False, limit=10000000,
@@ -154,15 +160,18 @@ if __name__ == '__main__':
     # print("--------- Prod Next FHIR with data streaming and Atlas -----")
     # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=10000000,
     #                       use_atlas=True, retrieve_only_ids=True))
+    # print("--------- Prod Next FHIR with data streaming and Atlas and useAccessIndex -----")
+    # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=10000000,
+    #                       use_atlas=True, retrieve_only_ids=True, use_access_index=False))
     # print("--------- Prod Next FHIR with data streaming, full resources -----")
     # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=1000,
     #                       use_atlas=False, retrieve_only_ids=False))
-    # print("--------- Prod Next FHIR with data streaming and Atlas, full resources -----")
-    # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=1000,
-    #                       use_atlas=True, retrieve_only_ids=False))
-    print("--------- Prod  FHIR external, full resources -----")
-    asyncio.run(load_data(fhir_server=prod_fhir_server_external, use_data_streaming=False, limit=100,
-                          use_atlas=False, retrieve_only_ids=False))
-    print("--------- Prod FHIR internal, full resources -----")
-    asyncio.run(load_data(fhir_server=prod_fhir_server, use_data_streaming=False, limit=100,
-                          use_atlas=False, retrieve_only_ids=False))
+    print("--------- Prod Next FHIR with data streaming and Atlas, full resources -----")
+    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=8000,
+                          use_atlas=True, retrieve_only_ids=False))
+    # print("--------- Prod  FHIR external, full resources -----")
+    # asyncio.run(load_data(fhir_server=prod_fhir_server_external, use_data_streaming=False, limit=100,
+    #                       use_atlas=False, retrieve_only_ids=False))
+    # print("--------- Prod FHIR internal, full resources -----")
+    # asyncio.run(load_data(fhir_server=prod_fhir_server, use_data_streaming=False, limit=100,
+    #                       use_atlas=False, retrieve_only_ids=False))
