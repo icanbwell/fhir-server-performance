@@ -11,9 +11,9 @@ from furl import furl
 from requests import Session, Response
 from requests.exceptions import ChunkedEncodingError
 
-from http.client import HTTPConnection, HTTPResponse
-HTTPConnection.debuglevel = 1
-HTTPResponse.debuglevel = 1
+# from http.client import HTTPConnection, HTTPResponse
+# HTTPConnection.debuglevel = 1
+# HTTPResponse.debuglevel = 1
 
 
 async def authenticate(client_id, client_secret, fhir_server_url):
@@ -119,7 +119,8 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
     def logging_hook(response1: Response, *args, **kwargs):
         # data = dump.dump_all(response1)
         # print(data.decode('utf-8'))
-        print(f"logging_hook: Headers= {response1.headers}")
+        # print(f"logging_hook: Headers= {response1.headers}")
+        pass
 
     with Session() as http:
         http.hooks["response"] = [logging_hook]
@@ -128,7 +129,7 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
             if response.status_code == 200:
                 dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
                 print(f"{dt_string}: Received response for {fhir_server_url} with Atlas={use_atlas}.")
-                print(f"{dt_string}: Headers= {response.headers}")
+                # print(f"{dt_string}: Headers= {response.headers}")
                 with open('output.json', mode='wb') as file:
                     if use_data_streaming:
                         buffer = b""
@@ -203,12 +204,15 @@ if __name__ == '__main__':
     # print("--------- Prod Next FHIR with data streaming, full resources -----")
     # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=1000,
     #                       use_atlas=False, retrieve_only_ids=False))
-    # print("--------- Prod Next FHIR with data streaming and Atlas, ids -----")
-    # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=500000,
-    #                       use_atlas=True, retrieve_only_ids=True))
-    print("--------- Prod Next FHIR with data streaming and Atlas, full resources -----")
-    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=10000,
-                          use_atlas=True, retrieve_only_ids=False))
+    print("--------- Prod Next FHIR with data streaming and Atlas, ids -----")
+    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=500000,
+                          use_atlas=True, retrieve_only_ids=True))
+    print("--------- Prod Next FHIR with data streaming and Atlas, ids, use access index -----")
+    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=500000,
+                          use_atlas=True, retrieve_only_ids=True, use_access_index=True))
+    # print("--------- Prod Next FHIR with data streaming and Atlas, full resources -----")
+    # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=10000,
+    #                       use_atlas=True, retrieve_only_ids=False))
     # print("--------- Prod  FHIR external, full resources -----")
     # asyncio.run(load_data(fhir_server=prod_fhir_server_external, use_data_streaming=False, limit=100,
     #                       use_atlas=False, retrieve_only_ids=False))
