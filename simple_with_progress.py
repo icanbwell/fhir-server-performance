@@ -6,7 +6,7 @@ from typing import Dict, Any
 import time
 from datetime import datetime, timedelta
 
-from aiohttp import ClientSession, ClientResponse, ClientTimeout
+from aiohttp import ClientSession, ClientResponse, ClientTimeout, TraceConfig
 from dotenv import load_dotenv
 from furl import furl
 
@@ -107,38 +107,61 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
 
     start_job = time.time()
 
+    async def on_request_start(
+            session, trace_config_ctx, params):
+        print("Starting request")
+
+    async def on_request_end(session, trace_config_ctx, params):
+        print("Ending request")
+
+    async def on_response_chunk_received(session, trace_config_ctx, params):
+        print("Received chunk")
+
+    async def on_request_exception(session, trace_config_ctx, params):
+        print("Received exception")
+
+    trace_config = TraceConfig()
+    trace_config.on_request_start.append(on_request_start)
+    trace_config.on_request_end.append(on_request_end)
+    trace_config.on_response_chunk_received.append(on_response_chunk_received)
+    trace_config.on_request_exception.append(on_request_exception)
+
     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     print(f"{dt_string}: Calling {fhir_server_url} with Atlas={use_atlas}")
-    async with ClientSession(timeout=ClientTimeout(total=0)) as http:
+    chunk_number = 0
+    async with ClientSession(timeout=ClientTimeout(total=0), trace_configs=[trace_config]) as http:
         async with http.request("GET", fhir_server_url, headers=headers, data=payload, ssl=False) as response:
-            dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            print(f"{dt_string}: Received response for {fhir_server_url} with Atlas={use_atlas}.")
-            # print(f"{dt_string}: Headers= {response.headers}")
-            with open('output.json', mode='wb') as file:
-                chunk_number = 0
-                if use_data_streaming:
-                    buffer = b""
+            if response.status == 200:
+                dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                print(f"{dt_string}: Received response for {fhir_server_url} with Atlas={use_atlas}.")
+                # print(f"{dt_string}: Headers= {response.headers}")
+                with open('output.json', mode='wb') as file:
+                    if use_data_streaming:
+                        buffer = b""
 
-                    # if you want to receive data one line at a time
-                    line: bytes
-                    async for line in response.content.iter_chunked(n=1000):
-                        # await asyncio.sleep(0)
-                        chunk_number += 1
-                        # dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                        chunk_end_time = time.time()
-                        file.write(line)
-                        # file.write("\n".encode('utf-8'))
-                        print(f"[{chunk_number}] {timedelta(seconds=chunk_end_time - start_job)}", end='\r')
-                    #     print(f"[{chunk_number}] {dt_string}: {line}", end='\r')
-                    # if you want to receive data in a binary buffer
-                    # async for data, _ in response.content.iter_chunks():
-                    #     chunk_number += 1
-                    #     buffer += data
-                    #     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                    #     print(f"[{chunk_number}] {dt_string}: {data}")
-                else:
-                    print(response.status)
-                    print(await response.text())
+                        # if you want to receive data one line at a time
+                        line: bytes
+                        async for line in response.content:
+                            # await asyncio.sleep(0)
+                            chunk_number += 1
+                            # dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                            chunk_end_time = time.time()
+                            file.write(line)
+                            file.write("\n".encode('utf-8'))
+                            print(f"[{chunk_number}] {timedelta(seconds=chunk_end_time - start_job)}", end='\r')
+                        await response.wait_for_close()
+                        #     print(f"[{chunk_number}] {dt_string}: {line}", end='\r')
+                        # if you want to receive data in a binary buffer
+                        # async for data, _ in response.content.iter_chunks():
+                        #     chunk_number += 1
+                        #     buffer += data
+                        #     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                        #     print(f"[{chunk_number}] {dt_string}: {data}")
+                    else:
+                        print(response.status)
+                        print(await response.text())
+            else:
+                print(f"ERROR: {response.status} {await response.text()}")
     end_job = time.time()
     print(f"====== Received {chunk_number} resources in {timedelta(seconds=end_job - start_job)}"
           f" with Atlas={use_atlas} =======")
@@ -171,8 +194,8 @@ if __name__ == '__main__':
     # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=1000,
     #                       use_atlas=False, retrieve_only_ids=False))
     print("--------- Prod Next FHIR with data streaming and Atlas, full resources -----")
-    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=10000,
-                          use_atlas=True, retrieve_only_ids=False))
+    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=500000,
+                          use_atlas=True, retrieve_only_ids=True))
     # print("--------- Prod  FHIR external, full resources -----")
     # asyncio.run(load_data(fhir_server=prod_fhir_server_external, use_data_streaming=False, limit=100,
     #                       use_atlas=False, retrieve_only_ids=False))
