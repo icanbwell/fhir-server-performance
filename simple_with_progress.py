@@ -129,6 +129,7 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     print(f"{dt_string}: Calling {fhir_server_url} with Atlas={use_atlas}")
     chunk_number = 0
+    num_lines: int = 0
     async with ClientSession(timeout=ClientTimeout(total=0), trace_configs=[trace_config]) as http:
         async with http.request("GET", fhir_server_url, headers=headers, data=payload, ssl=False) as response:
             if response.status == 200:
@@ -140,8 +141,9 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
                         buffer = b""
 
                         # if you want to receive data one line at a time
+                        # using `async for line in response.content` seems to have bugs
+                        # and somtimes returns `payload not completed`.
                         line: bytes
-                        num_lines: int = 0
                         async for data, end_of_http_chunk in response.content.iter_chunks():
                             chunk_number += 1
                             # file.write(data)
@@ -177,7 +179,7 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
             else:
                 print(f"ERROR: {response.status} {await response.text()}")
     end_job = time.time()
-    print(f"\n====== Received {chunk_number} resources in {timedelta(seconds=end_job - start_job)}"
+    print(f"\n====== Received {num_lines} resources in {timedelta(seconds=end_job - start_job)}"
           f" with Atlas={use_atlas} =======")
 
 
