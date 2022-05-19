@@ -133,6 +133,16 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
                     if use_data_streaming:
                         buffer = b""
                         try:
+                            # print(response.raw.data)
+                            # if hasattr(response.raw, 'stream'):
+                            #     for chunk in response.raw.stream(1, decode_content=False):
+                            #         if chunk == b'':
+                            #             pass
+                            #         file.write(chunk)
+                            #         file.flush()
+                            # for chunk in response.iter_content(chunk_size=None):
+                            #     file.write(chunk)
+                            #     file.flush()
                             # if you want to receive data one line at a time
                             line: bytes
                             for line in response.iter_lines():
