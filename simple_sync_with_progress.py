@@ -148,7 +148,7 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
             else:
                 print(f"ERROR: {response.status_code} {response.text}")
     end_job = time.time()
-    print(f"====== Received {chunk_number} resources in {timedelta(seconds=end_job - start_job)}"
+    print(f"\n====== Received {chunk_number} resources in {timedelta(seconds=end_job - start_job)}"
           f" with Atlas={use_atlas} =======")
 
 

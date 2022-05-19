@@ -71,8 +71,8 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
     :param limit:
     :return: None
     """
-    greater_than = "2021-11-23"
-    less_than = "2021-11-24"
+    greater_than = "2022-02-22"
+    less_than = "2022-02-24"
     fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt{greater_than}&_lastUpdated=lt{less_than}&_count={limit}&_getpagesoffset=0"
     # fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt2022-04-20&_lastUpdated=lt2022-04-22&_elements=id&_count={limit}&_getpagesoffset=0"
     if retrieve_only_ids:
@@ -141,14 +141,28 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
 
                         # if you want to receive data one line at a time
                         line: bytes
-                        async for line in response.content:
-                            # await asyncio.sleep(0)
+                        num_lines: int = 0
+                        async for data, end_of_http_chunk in response.content.iter_chunks():
                             chunk_number += 1
-                            # dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-                            chunk_end_time = time.time()
-                            file.write(line)
-                            file.write("\n".encode('utf-8'))
-                            print(f"[{chunk_number}] {timedelta(seconds=chunk_end_time - start_job)}", end='\r')
+                            # file.write(data)
+                            buffer += data
+                            if end_of_http_chunk:
+                                # print("End of HTTP chunk")
+                                my_text = buffer.decode('utf-8')
+                                num_lines += my_text.count('\n')
+                                file.write(buffer)
+                                buffer = b""
+                                chunk_end_time = time.time()
+                                print(f"[{chunk_number},{num_lines}] {timedelta(seconds=chunk_end_time - start_job)}",
+                                      end='\r')
+                        # async for line in response.content:
+                        #     # await asyncio.sleep(0)
+                        #     chunk_number += 1
+                        #     # dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                        #     chunk_end_time = time.time()
+                        #     file.write(line)
+                        #     # file.write("\n".encode('utf-8'))
+                        #     print(f"[{chunk_number}] {timedelta(seconds=chunk_end_time - start_job)}", end='\r')
                         await response.wait_for_close()
                         #     print(f"[{chunk_number}] {dt_string}: {line}", end='\r')
                         # if you want to receive data in a binary buffer
@@ -163,7 +177,7 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
             else:
                 print(f"ERROR: {response.status} {await response.text()}")
     end_job = time.time()
-    print(f"====== Received {chunk_number} resources in {timedelta(seconds=end_job - start_job)}"
+    print(f"\n====== Received {chunk_number} resources in {timedelta(seconds=end_job - start_job)}"
           f" with Atlas={use_atlas} =======")
 
 
