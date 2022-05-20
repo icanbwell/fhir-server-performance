@@ -7,6 +7,9 @@ simple_with_progress:
 simple_sync_with_progress:
 	python ./simple_sync_with_progress.py
 
+chunked_sync_with_progress:
+	python ./chunked_sync_with_progress.py
+
 bug1:
 	python ./bug1.py
 
