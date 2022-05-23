@@ -11,6 +11,7 @@ from furl import furl
 from requests import Session, Response
 from requests.exceptions import ChunkedEncodingError
 
+
 # from http.client import HTTPConnection, HTTPResponse
 # HTTPConnection.debuglevel = 1
 # HTTPResponse.debuglevel = 1
@@ -105,7 +106,9 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
         "Content-Type": "application/fhir+json",
         "Accept-Encoding": "gzip,deflate",
         "Authorization": f"Bearer {access_token}",
-        "Connection": "keep-alive",
+        "Connection": "Keep-Alive",
+        # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Keep-Alive
+        "Keep-Alive": "timeout=600, max=100",
         "x-no-compression": "1"
     }
 
@@ -125,8 +128,8 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
 
     # https://stackoverflow.com/questions/24500752/how-can-i-read-exactly-one-response-chunk-with-pythons-http-client
     import http.client
-    conn = http.client.HTTPSConnection(fhir_server)
-    conn.request("GET", fhir_server_relative_url, headers=headers,encode_chunked=False)
+    conn = http.client.HTTPSConnection(fhir_server, timeout=60*60*1000)
+    conn.request("GET", fhir_server_relative_url, headers=headers, encode_chunked=False)
     resp = conn.getresponse()
     print(resp.status, resp.reason)
     with open('output.json', mode='wb') as file:
@@ -256,6 +259,7 @@ if __name__ == '__main__':
     prod_fhir_server_external = "fhir.icanbwell.com"
     prod_fhir_server = "fhir.prod-mstarvac.icanbwell.com"
     prod_next_fhir_server = "fhir-next.icanbwell.com"
+    prod_bulk_fhir_server = "fhir-bulk.icanbwell.com"
 
     # print("--------- Prod FHIR no data streaming -----")
     # asyncio.run(load_data(fhir_server=prod_fhir_server, use_data_streaming=False, limit=10000000,
@@ -277,7 +281,7 @@ if __name__ == '__main__':
     #                       use_atlas=False, retrieve_only_ids=False))
     print("--------- Prod Next FHIR with data streaming and Atlas, ids -----")
     asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=500000,
-                          use_atlas=True, retrieve_only_ids=True))
+                          use_atlas=True, retrieve_only_ids=False))
     # print("--------- Prod Next FHIR with data streaming and Atlas, ids, use access index -----")
     # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=500000,
     #                       use_atlas=True, retrieve_only_ids=True, use_access_index=True))
