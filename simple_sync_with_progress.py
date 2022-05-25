@@ -156,7 +156,7 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
                                 # chunk_number += my_text.count('\n')
                                 file.write("\n".encode('utf-8'))
                                 file.flush()
-                                print(f"[{chunk_number}] {timedelta(seconds=chunk_end_time - start_job)}", end='\r')
+                                print(f"[{chunk_number:,}] {timedelta(seconds=chunk_end_time - start_job)}", end='\r')
                         except ChunkedEncodingError as e:
                             print("\n")
                             print(str(e))

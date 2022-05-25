@@ -156,7 +156,7 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
                                 file.flush()
                                 buffer = b""
                                 chunk_end_time = time.time()
-                                print(f"[{chunk_number},{num_lines}] {timedelta(seconds=chunk_end_time - start_job)}",
+                                print(f"[{chunk_number:,}][{num_lines:,}] {timedelta(seconds=chunk_end_time - start_job)}",
                                       end='\r')
                         # async for line in response.content:
                         #     # await asyncio.sleep(0)
@@ -191,6 +191,7 @@ if __name__ == '__main__':
     prod_fhir_server_external = "fhir.icanbwell.com"
     prod_fhir_server = "fhir.prod-mstarvac.icanbwell.com"
     prod_next_fhir_server = "fhir-next.icanbwell.com"
+    prod_bulk_fhir_server = "fhir-bulk.icanbwell.com"
 
     # print("--------- Prod FHIR no data streaming -----")
     # asyncio.run(load_data(fhir_server=prod_fhir_server, use_data_streaming=False, limit=10000000,
@@ -211,10 +212,10 @@ if __name__ == '__main__':
     # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=1000,
     #                       use_atlas=False, retrieve_only_ids=False))
     print("--------- Prod Next FHIR with data streaming and Atlas, ids -----")
-    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=500000,
+    asyncio.run(load_data(fhir_server=prod_bulk_fhir_server, use_data_streaming=True, limit=500000,
                           use_atlas=True, retrieve_only_ids=True))
     print("--------- Prod Next FHIR with data streaming and Atlas, full resources -----")
-    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=10000,
+    asyncio.run(load_data(fhir_server=prod_bulk_fhir_server, use_data_streaming=True, limit=10000,
                           use_atlas=True, retrieve_only_ids=False))
     # print("--------- Prod  FHIR external, full resources -----")
     # asyncio.run(load_data(fhir_server=prod_fhir_server_external, use_data_streaming=False, limit=100,
