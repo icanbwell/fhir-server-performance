@@ -88,6 +88,7 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
         fhir_server_relative_url += "&_streamResponse=1"
     if use_access_index:
         fhir_server_relative_url += "&_useAccessIndex=1"
+    fhir_server_relative_url += "&_cursorBatchSize=100"
     # _useTwoStepOptimization
     # fhir_server_url += "&_useTwoStepOptimization=1"
     # cursor_batch_size = 1000000
@@ -119,6 +120,7 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     print(f"{dt_string}: Calling {fhir_server_url} with Atlas={use_atlas}")
     chunk_number: int = 0
+    line_count: int = 0
 
     def logging_hook(response1: Response, *args, **kwargs):
         # data = dump.dump_all(response1)
@@ -173,15 +175,15 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
             if chunk_size == 0:
                 break
             else:
-                chunk = get_chunk_data(file, chunk_size)
+                line = get_chunk_data(file, chunk_size)
                 chunk_number += 1
                 chunk_end_time = time.time()
                 # file.write(chunk)
-                # my_text = line.decode('utf-8')
-                # chunk_number += my_text.count('\n')
+                my_text = line.decode('utf-8')
+                line_count += my_text.count('\n')
                 # file.write("\n".encode('utf-8'))
                 # file.flush()
-                print(f"[{chunk_number:,}] {chunk_size} {timedelta(seconds=chunk_end_time - start_job)}", end='\n')
+                print(f"[{chunk_number:,} {line_count:,}] {chunk_size} {timedelta(seconds=chunk_end_time - start_job)}", end='\n')
                 # print(repr(chunk))
 
         conn.close()
@@ -280,8 +282,8 @@ if __name__ == '__main__':
     # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=1000,
     #                       use_atlas=False, retrieve_only_ids=False))
     print("--------- Prod Next FHIR with data streaming and Atlas, ids -----")
-    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=500000,
-                          use_atlas=True, retrieve_only_ids=False))
+    asyncio.run(load_data(fhir_server=prod_bulk_fhir_server, use_data_streaming=True, limit=500000,
+                          use_atlas=True, retrieve_only_ids=True))
     # print("--------- Prod Next FHIR with data streaming and Atlas, ids, use access index -----")
     # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=500000,
     #                       use_atlas=True, retrieve_only_ids=True, use_access_index=True))

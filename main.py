@@ -38,7 +38,8 @@ class MyLogger(FhirLogger):
 class ResourceDownloader:
     def __init__(self) -> None:
         # fhir_server = "fhir.icanbwell.com"
-        fhir_server = "fhir-next.icanbwell.com"
+        # fhir_server = "fhir-next.icanbwell.com"
+        fhir_server = "fhir-bulk.icanbwell.com"
         # fhir_server = "fhir-next.prod-ue1.icanbwell.com"
         self.server_url = f"https://{fhir_server}/4_0_0"
         assert os.environ.get("FHIR_CLIENT_ID"), "FHIR_CLIENT_ID environment variable must be set"
@@ -50,6 +51,8 @@ class ResourceDownloader:
         self.client = os.environ.get("FHIR_CLIENT_TAG")
         self.auth_scopes = [f"user/{self.resource}.read", f"access/{self.client}.*"]
         self.page_size_for_retrieving_ids = 10000
+        greater_than = "2022-02-22"
+        less_than = "2022-02-24"
         self.start_date = datetime.strptime("2021-12-31", "%Y-%m-%d")
         self.end_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
         assert self.end_date > self.start_date
@@ -233,6 +236,7 @@ class ResourceDownloader:
         if self.use_data_streaming:
             fhir_client = fhir_client.additional_parameters(["_streamResponse=1"])
             fhir_client = fhir_client.use_data_streaming(True)
+        # fhir_client = fhir_client.additional_parameters(["_cursorBatchSize=100"])
         return fhir_client
 
 

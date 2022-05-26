@@ -185,6 +185,7 @@ if __name__ == '__main__':
     prod_fhir_server_external = "fhir.icanbwell.com"
     prod_fhir_server = "fhir.prod-mstarvac.icanbwell.com"
     prod_next_fhir_server = "fhir-next.icanbwell.com"
+    prod_bulk_fhir_server = "fhir-bulk.icanbwell.com"
 
     # print("--------- Prod FHIR no data streaming -----")
     # asyncio.run(load_data(fhir_server=prod_fhir_server, use_data_streaming=False, limit=10000000,
@@ -205,10 +206,10 @@ if __name__ == '__main__':
     # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=1000,
     #                       use_atlas=False, retrieve_only_ids=False))
     print("--------- Prod Next FHIR with data streaming and Atlas, ids -----")
-    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=500000,
+    asyncio.run(load_data(fhir_server=prod_bulk_fhir_server, use_data_streaming=True, limit=500000,
                           use_atlas=True, retrieve_only_ids=True))
     print("--------- Prod Next FHIR with data streaming and Atlas, ids, use access index -----")
-    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=500000,
+    asyncio.run(load_data(fhir_server=prod_bulk_fhir_server, use_data_streaming=True, limit=500000,
                           use_atlas=True, retrieve_only_ids=True, use_access_index=True))
     # print("--------- Prod Next FHIR with data streaming and Atlas, full resources -----")
     # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=10000,
