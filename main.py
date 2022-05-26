@@ -25,7 +25,7 @@ class MyLogger(FhirLogger):
         """
         Handle messages at INFO level
         """
-        # self._internal_logger.info(param)
+        self._internal_logger.info(param)
         pass
 
     def error(self, param: Any) -> None:
@@ -38,8 +38,8 @@ class MyLogger(FhirLogger):
 class ResourceDownloader:
     def __init__(self) -> None:
         # fhir_server = "fhir.icanbwell.com"
-        # fhir_server = "fhir-next.icanbwell.com"
-        fhir_server = "fhir-bulk.icanbwell.com"
+        fhir_server = "fhir-next.icanbwell.com"
+        # fhir_server = "fhir-bulk.icanbwell.com"
         # fhir_server = "fhir-next.prod-ue1.icanbwell.com"
         self.server_url = f"https://{fhir_server}/4_0_0"
         assert os.environ.get("FHIR_CLIENT_ID"), "FHIR_CLIENT_ID environment variable must be set"
@@ -50,15 +50,15 @@ class ResourceDownloader:
         assert os.environ.get("FHIR_CLIENT_TAG"), "FHIR_CLIENT_TAG environment variable must be set"
         self.client = os.environ.get("FHIR_CLIENT_TAG")
         self.auth_scopes = [f"user/{self.resource}.read", f"access/{self.client}.*"]
-        self.page_size_for_retrieving_ids = 10000
-        greater_than = "2022-02-22"
-        less_than = "2022-02-24"
-        self.start_date = datetime.strptime("2021-12-31", "%Y-%m-%d")
-        self.end_date = datetime.strptime("2022-01-01", "%Y-%m-%d")
+        self.page_size_for_retrieving_ids = 1000
+        # greater_than = "2022-02-22"
+        # less_than = "2022-02-24"
+        self.start_date = datetime.strptime("2022-02-22", "%Y-%m-%d")
+        self.end_date = datetime.strptime("2022-02-24", "%Y-%m-%d")
         assert self.end_date > self.start_date
         self.concurrent_requests = 10
         self.page_size_for_retrieving_resources = 100
-        self.use_data_streaming: bool = False
+        self.use_data_streaming: bool = True
         self.use_atlas: bool = True
 
     async def load_data(self, name):
@@ -127,7 +127,7 @@ class ResourceDownloader:
             return True
 
         async def on_error(error: str, resources1: str, page_number: Optional[int]) -> bool:
-            print(f"=== ERROR: {error} ===")
+            print(f"\n=== ERROR: {error} ===")
             return True
 
         async def on_received_ids(id_count_holder1: Dict[str, Union[int, float]], data: List[Dict[str, Any]],
@@ -235,8 +235,8 @@ class ResourceDownloader:
             fhir_client = fhir_client.additional_parameters(["_useAtlas=1"])
         if self.use_data_streaming:
             fhir_client = fhir_client.additional_parameters(["_streamResponse=1"])
-            fhir_client = fhir_client.use_data_streaming(True)
-        # fhir_client = fhir_client.additional_parameters(["_cursorBatchSize=100"])
+            # fhir_client = fhir_client.use_data_streaming(True)
+        fhir_client = fhir_client.additional_parameters(["_useAccessIndex=1"])
         return fhir_client
 
 

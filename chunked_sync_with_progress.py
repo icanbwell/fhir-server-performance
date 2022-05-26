@@ -284,9 +284,9 @@ if __name__ == '__main__':
     print("--------- Prod Next FHIR with data streaming and Atlas, ids -----")
     asyncio.run(load_data(fhir_server=prod_bulk_fhir_server, use_data_streaming=True, limit=500000,
                           use_atlas=True, retrieve_only_ids=True))
-    # print("--------- Prod Next FHIR with data streaming and Atlas, ids, use access index -----")
-    # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=500000,
-    #                       use_atlas=True, retrieve_only_ids=True, use_access_index=True))
+    print("--------- Prod Next FHIR with data streaming and Atlas, ids, use access index -----")
+    asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=500000,
+                          use_atlas=True, retrieve_only_ids=True, use_access_index=True))
     # print("--------- Prod Next FHIR with data streaming and Atlas, full resources -----")
     # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=10000,
     #                       use_atlas=True, retrieve_only_ids=False))
