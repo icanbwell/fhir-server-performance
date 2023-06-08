@@ -71,9 +71,9 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
     :param limit:
     :return: None
     """
-    greater_than = "2022-02-22"
-    less_than = "2022-02-24"
-    fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt{greater_than}&_lastUpdated=lt{less_than}&_count={limit}&_getpagesoffset=0"
+    greater_than = "2023-05-01"
+    less_than = "2023-05-30"
+    fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?date=gt{greater_than}&date=lt{less_than}&_count={limit}&_getpagesoffset=0"
     # fhir_server_url = f"https://{fhir_server}/4_0_0/AuditEvent?_lastUpdated=gt2022-04-20&_lastUpdated=lt2022-04-22&_elements=id&_count={limit}&_getpagesoffset=0"
     if retrieve_only_ids:
         fhir_server_url += "&_elements=id"
@@ -211,9 +211,9 @@ if __name__ == '__main__':
     # print("--------- Prod Next FHIR with data streaming, full resources -----")
     # asyncio.run(load_data(fhir_server=prod_next_fhir_server, use_data_streaming=True, limit=1000,
     #                       use_atlas=False, retrieve_only_ids=False))
-    print("--------- Prod Next FHIR with data streaming and Atlas, ids -----")
-    asyncio.run(load_data(fhir_server=prod_bulk_fhir_server, use_data_streaming=True, limit=500000,
-                          use_atlas=True, retrieve_only_ids=True))
+    # print("--------- Prod Next FHIR with data streaming and Atlas, ids -----")
+    # asyncio.run(load_data(fhir_server=prod_bulk_fhir_server, use_data_streaming=True, limit=500000,
+    #                       use_atlas=True, retrieve_only_ids=True))
     print("--------- Prod Next FHIR with data streaming and Atlas, full resources -----")
     asyncio.run(load_data(fhir_server=prod_bulk_fhir_server, use_data_streaming=True, limit=10000,
                           use_atlas=True, retrieve_only_ids=False))

@@ -77,17 +77,14 @@ async def load_data(fhir_server: str, use_data_streaming: bool, limit: int, use_
     :param limit:
     :return: None
     """
-    greater_than = "2022-02-22"
-    less_than = "2022-02-24"
-    fhir_server_relative_url = f"/4_0_0/AuditEvent?_lastUpdated=gt{greater_than}&_lastUpdated=lt{less_than}&_count={limit}&_getpagesoffset=0"
+    # greater_than = "2023-05-01"
+    # less_than = "2023-05-30"
+    # fhir_server_relative_url = f"/4_0_0/AuditEvent?_lastUpdated=gt{greater_than}&_lastUpdated=lt{less_than}&_count={limit}&_getpagesoffset=0"
+    fhir_server_relative_url = f"/4_0_0/Practitioner"
     if retrieve_only_ids:
         fhir_server_relative_url += "&_elements=id"
-    if use_atlas:
-        fhir_server_relative_url += "&_useAtlas=1"
-    if use_data_streaming:
-        fhir_server_relative_url += "&_streamResponse=1"
-    if use_access_index:
-        fhir_server_relative_url += "&_useAccessIndex=1"
+    # if use_data_streaming:
+    #     fhir_server_relative_url += "&_streamResponse=1"
     # fhir_server_relative_url += "&_cursorBatchSize=100"
     # _useTwoStepOptimization
     # fhir_server_url += "&_useTwoStepOptimization=1"
